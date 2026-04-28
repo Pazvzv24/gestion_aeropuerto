@@ -1,0 +1,17 @@
+# Archivos de configuración de editores
+.vscode/
+.idea/
+.DS_Store
+
+# Archivos de caché o temporales
+__pycache__/
+*.pyc
+
+# Archivos de entorno (si llegaras a usar)
+venv/
+env/
+.env
+
+# Java
+*.class
+bin/

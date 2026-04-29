@@ -89,11 +89,18 @@ Enum que estandariza los resultados de todas las operaciones de pasajeros, inclu
 
 ---
 
-
-
-
-
 ## Diagrama de Clases
+
+┌─────────────────────┐                  ┌──────────────────────────┐
+│     Aeropuerto      │                  │          Avion           │
+├─────────────────────┤      1   *       ├──────────────────────────┤
+│ - nombre: String    │─────────────────▶│ - id: int                │
+│ - A: Avion[100]     │                  │ - cantidadMaxima: int    │
+├─────────────────────┤                  │ - pasajerosActuales: int │
+│ + getNombre()       │                  │ - estado: boolean        │
+│ + getA()            │                  ├──────────────────────────┤
+
+
 
 
 

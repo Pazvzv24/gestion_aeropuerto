@@ -34,6 +34,71 @@ src/
 
 ---
 
+## Clases y Responsabilidades
+
+### `Aeropuerto`
+Representa el aeropuerto. Gestiona un arreglo hasta de 100 aviones y expone métodos para calcular estadísticas globales.
+
+ | Método  | Descripción  |
+ |---|---|
+ | `Aeropuerto(String nombre)` | Constructor. Inicializa 5 aviones con atributos aleatorios. |
+| `getNombre()` | Retorna el nombre del aeropuerto. |
+| `getA()` | Retorna el arreglo completo de aviones. |
+| `buscarAvion(int id)` | Busca y retorna un avión por su ID. Retorna `null` si no existe. |
+| `calcularTotalPasajeros()` | Retorna el total de pasajeros en todos los aviones activos. |
+| `calcularTotalDisponibles()` | Retorna el total de asientos disponibles en todos los aviones. |
+
+---
+
+### `Avion`
+Encapsula el estado y la lógica de cada avión.
+
+| Método | Descripción |
+|---|---|
+| `Avion(int id, int max, int actuales, boolean estado)` | Constructor con valores explícitos. |
+| `Avion(int id)` | Constructor con valores generados aleatoriamente. |
+| `subirPasajeros(int cantidad)` | Intenta embarcar pasajeros. Retorna un `OperationResult`. |
+| `bajarPasajeros(int cantidad)` | Intenta desembarcar pasajeros. Retorna un `OperationResult`. |
+| `getId()` | Retorna el identificador del avión. |
+| `getCantidadMaxima()` | Retorna la capacidad máxima del avión. |
+| `getPasajerosActuales()` | Retorna la cantidad actual de pasajeros. |
+| `getEstado()` | Retorna `true` si el vuelo está activo, `false` si está cancelado. |
+
+---
+
+### `Pasajero`
+Modelo simple que representa a un pasajero con nombre e ID.
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `nombre` | `String` | Nombre del pasajero |
+| `id` | `String` | Identificador único |
+
+---
+
+### `OperationResult`
+Enum que estandariza los resultados de todas las operaciones de pasajeros, incluyendo un mensaje descriptivo y un código de referencia.
+
+| Constante | Código | Mensaje |
+|---|---|---|
+| `SUCCESS` | 200 | Operación exitosa |
+| `CAPACITY_EXCEEDED` | 400 | El avión está lleno |
+| `INVALID_AMOUNT` | 422 | Cantidad de pasajeros inválida |
+| `FLIGHT_CANCELLED` | 503 | El vuelo está cancelado |
+| `PASSENGER_NOT_FOUND` | 404 | Pasajero no encontrado |
+
+---
+
+
+
+
+
+## Diagrama de Clases
+
+
+
+
+
 
 
 

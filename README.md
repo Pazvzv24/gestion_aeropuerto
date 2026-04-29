@@ -10,6 +10,8 @@
 
 - [Descripción](#descripcion)
 - [Arquitectura del Proyecto](#arquitectura-del-proyecto)
+- [Clases y Responsabilidades](#clases-y-responsabilidades)
+
 
 
 
@@ -20,6 +22,18 @@ Sistema de gestión de aeropuerto en Java que implementa POO. Simula el embarque
 ---
 
 ## Arquitectura del Proyecto
+
+```
+src/
+├── Aeropuerto.java       # Entidad principal que agrupa aviones
+├── Avion.java            # Modelo de avión con lógica pasajeros
+├── Pasajero.java         # Modelo de pasajero
+├── OperationResult.java  # Enum de resultados operación
+└── Main.java             # Punto de entrada y menú interactivo
+```
+
+---
+
 
 
 

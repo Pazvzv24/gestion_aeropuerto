@@ -9,9 +9,17 @@
 ## 📋 Tabla de Contenido
 
 - [Descripción](#descripcion)
+- [Arquitectura del Proyecto](#arquitectura-del-proyecto)
 
 
 
+## Descripción
+
+Sistema de gestión de aeropuerto en Java que implementa POO. Simula el embarque y desembarque de pasajeros en múltiples aviones, incorporando validaciones y un sistema unificado de resultados de operación.
+
+---
+
+## Arquitectura del Proyecto
 
 
 

@@ -8,7 +8,7 @@ public class Aeropuerto {
         // AJUSTE PARA PRUEBA: Cambiamos A.length (100) por 5
         for (int i = 0; i < 5; i++) {
             // Pasamos (i + 1) para que el ID sea correlativo (1 al 5)
-            A[i] = new Avion(i + 1); 
+            A[i] = new Avion(i + 1);
         }
         // Las posiciones del arreglo A[5] hasta A[99] quedarán como null
     }
@@ -17,7 +17,9 @@ public class Aeropuerto {
     public int calcularTotalPasajeros() {
         int total = 0;
         for (Avion a : A) {
-            if (a != null) total += a.getPasajerosActuales();
+            if (a != null) {
+                total += a.getPasajerosActuales();
+            }
         }
         return total;
     }
@@ -26,7 +28,9 @@ public class Aeropuerto {
     public int calcularTotalDisponibles() {
         int total = 0;
         for (Avion a : A) {
-            if (a != null) total += (a.getCantidadMaxima() - a.getPasajerosActuales());
+            if (a != null) {
+                total += (a.getCantidadMaxima() - a.getPasajerosActuales());
+            }
         }
         return total;
     }
@@ -42,8 +46,11 @@ public class Aeropuerto {
     }
 
     // Getters adicionales (se mantienen intactos)
-    public Avion[] getA() { return A; }
-    public String getNombre() { return nombre; }
-}
+    public Avion[] getA() {
+        return A;
+    }
 
-    
+    public String getNombre() {
+        return nombre;
+    }
+}

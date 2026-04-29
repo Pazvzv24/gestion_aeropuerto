@@ -13,7 +13,7 @@
 - [Clases y Responsabilidades](#clases-y-responsabilidades)
 - [Instalación y Ejecución](#instalación-y-ejecución)
 - [Ejemplos de Uso](#ejemplos-de-uso)
-
+- [Manejo de Resultados](#manejo-de-resultados)
 
 
 
@@ -152,6 +152,37 @@ Seleccione una opción:
 ---
 
 ## Ejemplos de Uso
+
+```java
+// El aeropuerto se inicializa con 5 aviones aleatorios
+Aeropuerto airport = new Aeropuerto("Aeropuerto Internacional");
+
+// Listar todos los aviones
+for (Avion a : airport.getA()) {
+    if (a != null) {
+        System.out.println("ID: " + a.getId() + " | Estado: " + (a.getEstado() ? "Activo" : "Inactivo"));
+    }
+}
+
+// Buscar un avión por ID
+Avion avion = airport.buscarAvion(3);
+
+// Intentar embarcar pasajeros
+OperationResult resultado = avion.subirPasajeros(10);
+if (resultado.isSuccess()) {
+    System.out.println("[OK] Embarque exitoso.");
+} else {
+    System.out.println("[ERROR] " + resultado.getMessage() + " (Cod: " + resultado.getStatusCode() + ")");
+}
+
+// Estadísticas globales
+System.out.println("Total pasajeros: " + airport.calcularTotalPasajeros());
+System.out.println("Asientos disponibles: " + airport.calcularTotalDisponibles());
+```
+
+---
+
+## Manejo de Resultados
 
 
 

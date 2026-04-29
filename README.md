@@ -12,6 +12,8 @@
 - [Arquitectura del Proyecto](#arquitectura-del-proyecto)
 - [Clases y Responsabilidades](#clases-y-responsabilidades)
 - [Instalación y Ejecución](#instalación-y-ejecución)
+- [Ejemplos de Uso](#ejemplos-de-uso)
+
 
 
 
@@ -119,6 +121,38 @@ Enum que estandariza los resultados de todas las operaciones de pasajeros, inclu
 ---
 
 ## Instalación y Ejecución
+
+Requisitos previos: JDK 8 o superior.
+
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/Pazvzv24/sistema-aeropuerto-java.git
+cd sistema-aeropuerto-java
+
+# 2. Compilar todos los archivos fuente
+javac *.java
+
+# 3. Ejecutar el programa
+java Main
+```
+
+Al ejecutar, el programa presenta un menú interactivo:
+
+```
+--- Aeropuerto: Aeropuerto Internacional ---
+1. Listar el ID de todos los aviones.
+2. Total de pasajeros actuales en todo los aviones.
+3. Total de asientos disponibles.
+4. Buscar avión por ID.
+5. Subir pasajeros (requiere cantidad).
+6. Bajar pasajeros (requiere cantidad).
+7. SALIR.
+Seleccione una opción:
+```
+---
+
+## Ejemplos de Uso
+
 
 
 

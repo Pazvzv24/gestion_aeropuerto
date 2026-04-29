@@ -11,6 +11,7 @@
 - [Descripción](#descripcion)
 - [Arquitectura del Proyecto](#arquitectura-del-proyecto)
 - [Clases y Responsabilidades](#clases-y-responsabilidades)
+- [Instalación y Ejecución](#instalación-y-ejecución)
 
 
 
@@ -91,6 +92,7 @@ Enum que estandariza los resultados de todas las operaciones de pasajeros, inclu
 
 ## Diagrama de Clases
 
+```
 ┌─────────────────────┐                  ┌──────────────────────────┐
 │     Aeropuerto      │                  │          Avion           │
 ├─────────────────────┤      1   *       ├──────────────────────────┤
@@ -99,8 +101,24 @@ Enum que estandariza los resultados de todas las operaciones de pasajeros, inclu
 ├─────────────────────┤                  │ - pasajerosActuales: int │
 │ + getNombre()       │                  │ - estado: boolean        │
 │ + getA()            │                  ├──────────────────────────┤
+│ + buscarAvion()     │                  │ + subirPasajeros()       │
+│ + calcularTotal...  │                  │ + bajarPasajeros()       │
+│ + calcularDisp...   │                  └──────────────────────────┘
+└─────────────────────┘                              │ returns
+                                                     ▼
+                                         ┌──────────────────────────┐
+                                         │     OperationResult      │
+                                         ├──────────────────────────┤
+                                         │ SUCCESS                  │
+                                         │ CAPACITY_EXCEEDED        │
+                                         │ INVALID_AMOUNT           │
+                                         │ FLIGHT_CANCELLED         │
+                                         │ PASSENGER_NOT_FOUND      │
+                                         └──────────────────────────┘
+```
+---
 
-
+## Instalación y Ejecución
 
 
 

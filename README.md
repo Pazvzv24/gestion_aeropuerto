@@ -15,6 +15,7 @@
 - [Ejemplos de Uso](#ejemplos-de-uso)
 - [Manejo de Resultados](#manejo-de-resultados)
 - [Requisitos](#requisitos)
+- [Autora](#autora)
 
 
 
@@ -198,6 +199,18 @@ System.out.println(result.isSuccess());     // true / false
 ---
 
 ## Requisitos
+
+- **Java:** JDK 8+
+- **Paradigma:** POO
+- **Dependencias externas:** Ninguna
+
+---
+
+## 😎 Autora
+
+**Marcela Luza Barraza**  
+Técnico en Programación y Análisis de Sistemas — Instituto Profesional AIEP  
+Año 2026
 
 
 

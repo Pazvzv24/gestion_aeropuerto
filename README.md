@@ -14,6 +14,7 @@
 - [Instalación y Ejecución](#instalación-y-ejecución)
 - [Ejemplos de Uso](#ejemplos-de-uso)
 - [Manejo de Resultados](#manejo-de-resultados)
+- [Requisitos](#requisitos)
 
 
 
@@ -183,6 +184,21 @@ System.out.println("Asientos disponibles: " + airport.calcularTotalDisponibles()
 ---
 
 ## Manejo de Resultados
+
+El sistema utiliza el patron "Result Object" mediante el enum `OperationResult`, evitando el uso de excepciones para flujo de control. Cada operación retorna un resultado que puede inspeccionarse de forma limpia:
+
+```java
+OperationResult result = avion.subirPasajeros(cantidad);
+
+System.out.println(result.getMessage());    // Mensaje legible
+System.out.println(result.getStatusCode()); // Código de referencia
+System.out.println(result.isSuccess());     // true / false
+```
+
+---
+
+## Requisitos
+
 
 
 

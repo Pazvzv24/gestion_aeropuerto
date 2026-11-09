@@ -1,221 +1,178 @@
-# SISTEMA DE GESTION DE AEROPUERTO
+# Sistema de Gestión de Aeropuerto
 
-> Simulación orientada a objetos de un sistema de gestión de pasajeros, implemetado en Java.
+![Java 17](https://img.shields.io/badge/Java-17-E76F00?logo=openjdk&logoColor=white)
+![Sin dependencias](https://img.shields.io/badge/dependencias-ninguna-success)
 
-🔗 **Repositorio:** [github.com/Pazvzv24/sistema-aeropuerto-java](https://github.com/Pazvzv24/sistema-aeropuerto-java)
+Simulación orientada a objetos del embarque y desembarque de pasajeros en un aeropuerto, escrita en **Java 17**. Cada operación valida sus reglas y devuelve un resultado explícito (patrón *Result Object*), y toda la entrada del usuario se valida antes de usarse.
 
----
-
-## 📋 Tabla de Contenido
-
-- [Descripción](#descripcion)
-- [Arquitectura del Proyecto](#arquitectura-del-proyecto)
-- [Clases y Responsabilidades](#clases-y-responsabilidades)
-- [Instalación y Ejecución](#instalación-y-ejecución)
-- [Ejemplos de Uso](#ejemplos-de-uso)
-- [Manejo de Resultados](#manejo-de-resultados)
-- [Requisitos](#requisitos)
-- [Autora](#autora)
-
-
-
-
-## Descripción
-
-Sistema de gestión de aeropuerto en Java que implementa POO. Simula el embarque y desembarque de pasajeros en múltiples aviones, incorporando validaciones y un sistema unificado de resultados de operación.
+Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacional**, continuado como proyecto de portafolio. Ver [Contexto](#contexto).
 
 ---
 
-## Arquitectura del Proyecto
+## Tabla de contenido
 
-```
-src/
-├── Aeropuerto.java       # Entidad principal que agrupa aviones
-├── Avion.java            # Modelo de avión con lógica pasajeros
-├── Pasajero.java         # Modelo de pasajero
-├── OperationResult.java  # Enum de resultados operación
-└── Main.java             # Punto de entrada y menú interactivo
-```
-
----
-
-## Clases y Responsabilidades
-
-### `Aeropuerto`
-Representa el aeropuerto. Gestiona un arreglo hasta de 100 aviones y expone métodos para calcular estadísticas globales.
-
- | Método  | Descripción  |
- |---|---|
- | `Aeropuerto(String nombre)` | Constructor. Inicializa 5 aviones con atributos aleatorios. |
-| `getNombre()` | Retorna el nombre del aeropuerto. |
-| `getA()` | Retorna el arreglo completo de aviones. |
-| `buscarAvion(int id)` | Busca y retorna un avión por su ID. Retorna `null` si no existe. |
-| `calcularTotalPasajeros()` | Retorna el total de pasajeros en todos los aviones activos. |
-| `calcularTotalDisponibles()` | Retorna el total de asientos disponibles en todos los aviones. |
+- [Funcionalidades](#funcionalidades)
+- [Ejecución](#ejecución)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Diseño](#diseño)
+- [Reglas del negocio](#reglas-del-negocio)
+- [Contexto](#contexto)
+- [Historial de versiones](#historial-de-versiones)
 
 ---
 
-### `Avion`
-Encapsula el estado y la lógica de cada avión.
+## Funcionalidades
 
-| Método | Descripción |
-|---|---|
-| `Avion(int id, int max, int actuales, boolean estado)` | Constructor con valores explícitos. |
-| `Avion(int id)` | Constructor con valores generados aleatoriamente. |
-| `subirPasajeros(int cantidad)` | Intenta embarcar pasajeros. Retorna un `OperationResult`. |
-| `bajarPasajeros(int cantidad)` | Intenta desembarcar pasajeros. Retorna un `OperationResult`. |
-| `getId()` | Retorna el identificador del avión. |
-| `getCantidadMaxima()` | Retorna la capacidad máxima del avión. |
-| `getPasajerosActuales()` | Retorna la cantidad actual de pasajeros. |
-| `getEstado()` | Retorna `true` si el vuelo está activo, `false` si está cancelado. |
-
----
-
-### `Pasajero`
-Modelo simple que representa a un pasajero con nombre e ID.
-
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `nombre` | `String` | Nombre del pasajero |
-| `id` | `String` | Identificador único |
-
----
-
-### `OperationResult`
-Enum que estandariza los resultados de todas las operaciones de pasajeros, incluyendo un mensaje descriptivo y un código de referencia.
-
-| Constante | Código | Mensaje |
-|---|---|---|
-| `SUCCESS` | 200 | Operación exitosa |
-| `CAPACITY_EXCEEDED` | 400 | El avión está lleno |
-| `INVALID_AMOUNT` | 422 | Cantidad de pasajeros inválida |
-| `FLIGHT_CANCELLED` | 503 | El vuelo está cancelado |
-| `PASSENGER_NOT_FOUND` | 404 | Pasajero no encontrado |
-
----
-
-## Diagrama de Clases
-
-```
-┌─────────────────────┐                  ┌──────────────────────────┐
-│     Aeropuerto      │                  │          Avion           │
-├─────────────────────┤      1   *       ├──────────────────────────┤
-│ - nombre: String    │─────────────────▶│ - id: int                │
-│ - A: Avion[100]     │                  │ - cantidadMaxima: int    │
-├─────────────────────┤                  │ - pasajerosActuales: int │
-│ + getNombre()       │                  │ - estado: boolean        │
-│ + getA()            │                  ├──────────────────────────┤
-│ + buscarAvion()     │                  │ + subirPasajeros()       │
-│ + calcularTotal...  │                  │ + bajarPasajeros()       │
-│ + calcularDisp...   │                  └──────────────────────────┘
-└─────────────────────┘                              │ returns
-                                                     ▼
-                                         ┌──────────────────────────┐
-                                         │     OperationResult      │
-                                         ├──────────────────────────┤
-                                         │ SUCCESS                  │
-                                         │ CAPACITY_EXCEEDED        │
-                                         │ INVALID_AMOUNT           │
-                                         │ FLIGHT_CANCELLED         │
-                                         │ PASSENGER_NOT_FOUND      │
-                                         └──────────────────────────┘
-```
----
-
-## Instalación y Ejecución
-
-Requisitos previos: JDK 8 o superior.
-
-```bash
-# 1. Clonar el repositorio
-git clone https://github.com/Pazvzv24/sistema-aeropuerto-java.git
-cd sistema-aeropuerto-java
-
-# 2. Compilar todos los archivos fuente
-javac *.java
-
-# 3. Ejecutar el programa
-java Main
-```
-
-Al ejecutar, el programa presenta un menú interactivo:
+Menú interactivo por consola:
 
 ```
 --- Aeropuerto: Aeropuerto Internacional ---
-1. Listar el ID de todos los aviones.
-2. Total de pasajeros actuales en todo los aviones.
+1. Listar los aviones.
+2. Total de pasajeros a bordo.
 3. Total de asientos disponibles.
 4. Buscar avión por ID.
-5. Subir pasajeros (requiere cantidad).
-6. Bajar pasajeros (requiere cantidad).
-7. SALIR.
+5. Subir pasajeros.
+6. Bajar pasajeros.
+7. Salir.
 Seleccione una opción:
 ```
+
+Al iniciar, el aeropuerto crea 5 aviones con capacidad (entre 50 y 150 asientos), pasajeros y estado (activo o cancelado) aleatorios.
+
 ---
 
-## Ejemplos de Uso
+## Ejecución
 
-```java
-// El aeropuerto se inicializa con 5 aviones aleatorios
-Aeropuerto airport = new Aeropuerto("Aeropuerto Internacional");
+**Requisitos:** JDK 17 o superior. No usa librerías externas.
 
-// Listar todos los aviones
-for (Avion a : airport.getA()) {
-    if (a != null) {
-        System.out.println("ID: " + a.getId() + " | Estado: " + (a.getEstado() ? "Activo" : "Inactivo"));
+```bash
+# 1. Clonar el repositorio
+git clone https://github.com/Pazvzv24/gestion_aeropuerto.git
+cd gestion_aeropuerto
+
+# 2. Compilar
+javac *.java
+
+# 3. Ejecutar
+java Main
+```
+
+> Si la consola de Windows muestra mal las tildes, ejecuta antes `chcp 65001`.
+
+---
+
+## Estructura del proyecto
+
+```
+gestion_aeropuerto/
+├── Aeropuerto.java        # Agrupa hasta 100 aviones y calcula totales
+├── Avion.java             # Capacidad, pasajeros y estado de cada avión
+├── Pasajero.java          # Modelo de pasajero
+├── OperationResult.java   # Resultados posibles de una operación
+└── Main.java              # Menú interactivo
+```
+
+---
+
+## Diseño
+
+```mermaid
+classDiagram
+    class Aeropuerto {
+        -String nombre
+        -Avion[100] aviones
+        +getAviones() List~Avion~
+        +buscarAvion(int id) Avion
+        +calcularTotalPasajeros() int
+        +calcularTotalDisponibles() int
+        +subirPasajeros(int idAvion, int cantidad) OperationResult
+        +bajarPasajeros(int idAvion, int cantidad) OperationResult
     }
-}
-
-// Buscar un avión por ID
-Avion avion = airport.buscarAvion(3);
-
-// Intentar embarcar pasajeros
-OperationResult resultado = avion.subirPasajeros(10);
-if (resultado.isSuccess()) {
-    System.out.println("[OK] Embarque exitoso.");
-} else {
-    System.out.println("[ERROR] " + resultado.getMessage() + " (Cod: " + resultado.getStatusCode() + ")");
-}
-
-// Estadísticas globales
-System.out.println("Total pasajeros: " + airport.calcularTotalPasajeros());
-System.out.println("Asientos disponibles: " + airport.calcularTotalDisponibles());
+    class Avion {
+        -int id
+        -int cantidadMaxima
+        -int pasajerosActuales
+        -boolean estado
+        +subirPasajeros(int cantidad) OperationResult
+        +bajarPasajeros(int cantidad) OperationResult
+        +getAsientosDisponibles() int
+    }
+    class Pasajero {
+        -String nombre
+        -String id
+    }
+    class OperationResult {
+        <<enumeration>>
+        SUCCESS
+        CAPACITY_EXCEEDED
+        NOT_ENOUGH_PASSENGERS
+        INVALID_AMOUNT
+        AIRPLANE_NOT_FOUND
+        FLIGHT_CANCELLED
+    }
+    Aeropuerto "1" o-- "0..100" Avion
+    Avion ..> OperationResult : devuelve
 ```
 
----
+### Patrón Result Object
 
-## Manejo de Resultados
-
-El sistema utiliza el patron "Result Object" mediante el enum `OperationResult`, evitando el uso de excepciones para flujo de control. Cada operación retorna un resultado que puede inspeccionarse de forma limpia:
+Las operaciones no lanzan excepciones para los casos esperados (avión lleno, vuelo cancelado, etc.): devuelven un `OperationResult` que se puede revisar de forma clara.
 
 ```java
-OperationResult result = avion.subirPasajeros(cantidad);
+OperationResult resultado = aeropuerto.subirPasajeros(3, 10);
 
-System.out.println(result.getMessage());    // Mensaje legible
-System.out.println(result.getStatusCode()); // Código de referencia
-System.out.println(result.isSuccess());     // true / false
+if (resultado.isSuccess()) {
+    System.out.println("Embarque exitoso");
+} else {
+    System.out.println(resultado.getMessage() + " (código " + resultado.getStatusCode() + ")");
+}
 ```
 
+| Resultado | Código | Mensaje |
+| :--- | :---: | :--- |
+| `SUCCESS` | 200 | Operación exitosa |
+| `CAPACITY_EXCEEDED` | 400 | El avión no tiene asientos suficientes |
+| `AIRPLANE_NOT_FOUND` | 404 | Avión no encontrado |
+| `NOT_ENOUGH_PASSENGERS` | 409 | No hay tantos pasajeros a bordo |
+| `INVALID_AMOUNT` | 422 | Cantidad de pasajeros inválida |
+| `FLIGHT_CANCELLED` | 503 | El vuelo está cancelado |
+
+Los códigos siguen la idea de los códigos HTTP para que sean fáciles de reconocer.
+
+### Validación y encapsulamiento
+
+- **Entrada del usuario:** si se escribe algo que no es un número, el programa avisa y vuelve a preguntar, en vez de cerrarse con un error.
+- **Estado siempre válido:** un avión no puede crearse con capacidad negativa ni con más pasajeros que asientos (el constructor lo rechaza).
+- **Operaciones atómicas:** si una operación falla, el avión queda exactamente como estaba.
+- **Encapsulamiento:** el arreglo de aviones es privado. `getAviones()` entrega una copia de solo lectura, así nadie puede borrar o reemplazar aviones desde fuera.
+
 ---
 
-## Requisitos
+## Reglas del negocio
 
-- **Java:** JDK 8+
-- **Paradigma:** POO
-- **Dependencias externas:** Ninguna
+- Solo se pueden subir pasajeros a un vuelo **activo** y hasta completar su capacidad.
+- Los pasajeros **siempre pueden bajar**, incluso si el vuelo fue cancelado.
+- No se puede bajar más pasajeros de los que hay a bordo.
+- Las cantidades deben ser mayores que 0.
+- El aeropuerto admite como máximo **100 aviones**, sin IDs repetidos.
+- Los totales consideran todos los aviones, activos y cancelados.
 
 ---
 
-## 😎 Autora
+## Contexto
 
-**Marcela Luza Barraza**  
-Técnico en Programación y Análisis de Sistemas — Instituto Profesional AIEP  
-Año 2026
+Este proyecto nació como una evaluación del ramo **Fundamentos de Programación Computacional** (AIEP, primer semestre), en la unidad de introducción a Java. La **v1.0** corresponde a la versión entregada; desde la **v1.1** continúa como proyecto de portafolio.
 
+No se incluyen el enunciado ni la pauta de evaluación.
 
+---
 
+## Historial de versiones
 
-
+| Versión | Cambios |
+| :--- | :--- |
+| v1.0 | Versión entregada en la evaluación: clases `Aeropuerto`, `Avion`, `Pasajero` y `OperationResult`, menú por consola y documentación. |
+| v1.1 | Mensaje correcto al bajar más pasajeros de los que hay (`NOT_ENOUGH_PASSENGERS`); el programa ya no se cierra si se escribe texto en vez de un número; validación en los constructores; arreglo de aviones encapsulado; resultado `AIRPLANE_NOT_FOUND`; capacidad aleatoria entre 50 y 150 inclusive; README renovado. |
 
 
 

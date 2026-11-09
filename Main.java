@@ -1,114 +1,138 @@
+import java.io.PrintStream;
+import java.util.OptionalInt;
 import java.util.Scanner;
 
+/**
+ * Punto de entrada: menú interactivo por consola.
+ * Toda la entrada del usuario se valida: si escribe algo que no es un número,
+ * el programa vuelve a preguntar en vez de cerrarse con un error.
+ */
 public class Main {
+
+    private static final int OPCION_SALIR = 7;
+
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        
-        // 4a. Creamos el aeropuerto (el constructor crea los 100 aviones automáticamente)
-        Aeropuerto airport = new Aeropuerto("Aeropuerto Internacional");
-
-        boolean salir = false;
-
-        while (!salir) {
-            System.out.println("\n--- Aeropuerto: " + airport.getNombre() + " ---");
-            // 1. Listar ID de todos los aviones
-            System.out.println("1. Listar el ID de todos los aviones.");
-            // 2. Total pasajeros en todos los aviones (aeropuerto)
-            System.out.println("2. Total de pasajeros actuales en todo los aviones.");
-            // 3. Cantidad de asientos disponibles en todos los aviones
-            System.out.println("3. Total de asientos disponibles.");
-            // 4. Buscar y mostrar datos de aviones a traves de ID
-            System.out.println("4. Buscar avión por ID.");
-            // 5. Subir Pasajeros
-            System.out.println("5. Subir pasajeros (requiere cantidad).");
-            // 6. Bajar Pasajeros
-            System.out.println("6. Bajar pasajeros (requiere cantidad).");
-            // 7. Salir
-            System.out.println("7. SALIR.");
-            // 8. Seleccionar opcion (1 - 7)
-            System.out.print("Seleccione una opción: ");
-
-            int opcion = scanner.nextInt();
-
-            switch (opcion) {
-                case 1:
-                    System.out.println("\n--- Lista de Aviones ---");
-                    for (Avion a : airport.getA()) {
-                        if (a != null) {
-                            System.out.println("ID: " + a.getId() + " | Estado: " + (a.getEstado() ? "Activo" : "Inactivo"));
-                        }
-                    }
-                    break;
-
-                case 2:
-                    // 4b. Usamos el nuevo método de cálculo
-                    System.out.println("\nTotal de pasajeros actuales en todo el aeropuerto: " + airport.calcularTotalPasajeros());
-                    break;
-
-                case 3:
-                    // 4c. Usamos el nuevo método de cálculo
-                    System.out.println("\nTotal de asientos disponibles: " + airport.calcularTotalDisponibles());
-                    break;
-
-                case 4:
-                    System.out.print("Ingrese ID del avión: ");
-                    int idBusqueda = scanner.nextInt();
-                    Avion enc = airport.buscarAvion(idBusqueda);
-                    if (enc != null) {
-                        System.out.println("Datos: ID=" + enc.getId() + 
-                                           ", Max=" + enc.getCantidadMaxima() + 
-                                           ", Actual=" + enc.getPasajerosActuales() + 
-                                           ", Estado=" + (enc.getEstado() ? "Activo" : "Inactivo"));
-                    } else {
-                        System.out.println("Error: Avión no encontrado.");
-                    }
-                    break;
-
-                case 5:
-                    System.out.print("Ingrese ID del avión: ");
-                    int idSubir = scanner.nextInt();
-                    Avion avSubir = airport.buscarAvion(idSubir);
-                    if (avSubir != null) {
-                        System.out.print("¿Cuántos pasajeros desea subir?: ");
-                        int cant = scanner.nextInt();
-                        procesar(avSubir.subirPasajeros(cant), "Subir Pasajeros");
-                    } else {
-                        System.out.println("Error: Avión no encontrado.");
-                    }
-                    break;
-
-                case 6:
-                    System.out.print("Ingrese ID del avión: ");
-                    int idBajar = scanner.nextInt();
-                    Avion avBajar = airport.buscarAvion(idBajar);
-                    if (avBajar != null) {
-                        System.out.print("¿Cuántos pasajeros desea bajar?: ");
-                        int cant = scanner.nextInt();
-                        procesar(avBajar.bajarPasajeros(cant), "Bajar Pasajeros");
-                    } else {
-                        System.out.println("Error: Avión no encontrado.");
-                    }
-                    break;
-
-                case 7:
-                    salir = true;
-                    System.out.println("Saliendo...");
-                    break;
-
-                default:
-                    System.out.println("Opción inválida.");
-            }
+        Aeropuerto aeropuerto = new Aeropuerto("Aeropuerto Internacional");
+        try (Scanner scanner = new Scanner(System.in)) {
+            ejecutarMenu(aeropuerto, scanner, System.out);
         }
-        scanner.close();
     }
 
-    private static void procesar(OperationResult res, String accion) {
-        if (res.isSuccess()) {
-            System.out.println("[OK] " + accion + ": Éxito.");
+    /** Muestra el menú y procesa opciones hasta que el usuario elige salir o termina la entrada. */
+    static void ejecutarMenu(Aeropuerto aeropuerto, Scanner scanner, PrintStream salida) {
+        boolean salir = false;
+        while (!salir) {
+            mostrarMenu(aeropuerto, salida);
+            OptionalInt opcion = leerEntero(scanner, salida, "Seleccione una opción: ");
+            if (opcion.isEmpty()) {
+                salida.println("\nNo hay más entrada. Saliendo...");
+                return;
+            }
+
+            switch (opcion.getAsInt()) {
+                case 1 -> listarAviones(aeropuerto, salida);
+                case 2 -> salida.println("\nTotal de pasajeros a bordo en el aeropuerto: "
+                        + aeropuerto.calcularTotalPasajeros());
+                case 3 -> salida.println("\nTotal de asientos disponibles: "
+                        + aeropuerto.calcularTotalDisponibles());
+                case 4 -> buscarAvion(aeropuerto, scanner, salida);
+                case 5 -> moverPasajeros(aeropuerto, scanner, salida, true);
+                case 6 -> moverPasajeros(aeropuerto, scanner, salida, false);
+                case OPCION_SALIR -> {
+                    salir = true;
+                    salida.println("Saliendo...");
+                }
+                default -> salida.println("Opción inválida: elija un número del 1 al " + OPCION_SALIR + ".");
+            }
+        }
+    }
+
+    private static void mostrarMenu(Aeropuerto aeropuerto, PrintStream salida) {
+        salida.println("\n--- Aeropuerto: " + aeropuerto.getNombre() + " ---");
+        salida.println("1. Listar los aviones.");
+        salida.println("2. Total de pasajeros a bordo.");
+        salida.println("3. Total de asientos disponibles.");
+        salida.println("4. Buscar avión por ID.");
+        salida.println("5. Subir pasajeros.");
+        salida.println("6. Bajar pasajeros.");
+        salida.println(OPCION_SALIR + ". Salir.");
+    }
+
+    private static void listarAviones(Aeropuerto aeropuerto, PrintStream salida) {
+        salida.println("\n--- Lista de aviones ---");
+        for (Avion avion : aeropuerto.getAviones()) {
+            salida.println("ID: " + avion.getId() + " | Estado: " + describirEstado(avion));
+        }
+    }
+
+    private static void buscarAvion(Aeropuerto aeropuerto, Scanner scanner, PrintStream salida) {
+        OptionalInt id = leerEntero(scanner, salida, "Ingrese el ID del avión: ");
+        if (id.isEmpty()) {
+            return;
+        }
+        Avion avion = aeropuerto.buscarAvion(id.getAsInt());
+        if (avion == null) {
+            salida.println(OperationResult.AIRPLANE_NOT_FOUND.getMessage());
+            return;
+        }
+        salida.println("ID: " + avion.getId()
+                + " | Capacidad: " + avion.getCantidadMaxima()
+                + " | A bordo: " + avion.getPasajerosActuales()
+                + " | Disponibles: " + avion.getAsientosDisponibles()
+                + " | Estado: " + describirEstado(avion));
+    }
+
+    private static void moverPasajeros(Aeropuerto aeropuerto, Scanner scanner, PrintStream salida, boolean subir) {
+        OptionalInt id = leerEntero(scanner, salida, "Ingrese el ID del avión: ");
+        if (id.isEmpty()) {
+            return;
+        }
+        if (aeropuerto.buscarAvion(id.getAsInt()) == null) {
+            mostrarResultado(OperationResult.AIRPLANE_NOT_FOUND, subir ? "Subir pasajeros" : "Bajar pasajeros", salida);
+            return;
+        }
+        OptionalInt cantidad = leerEntero(scanner, salida,
+                subir ? "¿Cuántos pasajeros desea subir?: " : "¿Cuántos pasajeros desea bajar?: ");
+        if (cantidad.isEmpty()) {
+            return;
+        }
+        OperationResult resultado = subir
+                ? aeropuerto.subirPasajeros(id.getAsInt(), cantidad.getAsInt())
+                : aeropuerto.bajarPasajeros(id.getAsInt(), cantidad.getAsInt());
+        mostrarResultado(resultado, subir ? "Subir pasajeros" : "Bajar pasajeros", salida);
+    }
+
+    private static String describirEstado(Avion avion) {
+        return avion.getEstado() ? "Activo" : "Cancelado";
+    }
+
+    static void mostrarResultado(OperationResult resultado, String accion, PrintStream salida) {
+        if (resultado.isSuccess()) {
+            salida.println("[OK] " + accion + ": operación exitosa.");
         } else {
-            System.out.println("[ERROR] " + accion + ": " + res.getMessage() + " (Cod: " + res.getStatusCode() + ")");
+            salida.println("[ERROR] " + accion + ": " + resultado.getMessage()
+                    + " (código " + resultado.getStatusCode() + ")");
+        }
+    }
+
+    /**
+     * Lee un número entero. Si el usuario escribe otra cosa, avisa y vuelve a preguntar.
+     *
+     * @return el número leído, o vacío si la entrada terminó (por ejemplo, Ctrl+Z / Ctrl+D)
+     */
+    static OptionalInt leerEntero(Scanner scanner, PrintStream salida, String mensaje) {
+        while (true) {
+            salida.print(mensaje);
+            if (!scanner.hasNextLine()) {
+                return OptionalInt.empty();
+            }
+            String texto = scanner.nextLine().trim();
+            try {
+                return OptionalInt.of(Integer.parseInt(texto));
+            } catch (NumberFormatException e) {
+                salida.println("Entrada inválida: escriba un número entero.");
+            }
         }
     }
 }
-
             

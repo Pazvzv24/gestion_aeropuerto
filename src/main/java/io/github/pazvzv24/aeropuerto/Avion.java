@@ -78,6 +78,11 @@ public class Avion {
         return cantidadMaxima - pasajerosActuales;
     }
 
+    /** Porcentaje de ocupación del avión, entre 0 y 100. */
+    public double getPorcentajeOcupacion() {
+        return pasajerosActuales * 100.0 / cantidadMaxima;
+    }
+
     /** @return true si el vuelo está activo; false si está cancelado. */
     public boolean getEstado() {
         return estado;
@@ -116,4 +121,3 @@ public class Avion {
         return OperationResult.SUCCESS;
     }
 }
-

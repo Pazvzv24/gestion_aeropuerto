@@ -6,7 +6,7 @@
 
     <groupId>io.github.pazvzv24</groupId>
     <artifactId>gestion-aeropuerto</artifactId>
-    <version>2.0.0</version>
+    <version>2.1.0</version>
     <packaging>jar</packaging>
 
     <name>Gestión de Aeropuerto</name>
@@ -18,9 +18,17 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <junit.version>5.12.2</junit.version>
+        <flatlaf.version>3.6</flatlaf.version>
     </properties>
 
     <dependencies>
+        <!-- Apariencia moderna para la interfaz gráfica (temas claro y oscuro) -->
+        <dependency>
+            <groupId>com.formdev</groupId>
+            <artifactId>flatlaf</artifactId>
+            <version>${flatlaf.version}</version>
+        </dependency>
+
         <!-- Solo para las pruebas: no se incluye en el programa final -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -50,7 +58,7 @@
                 <version>3.5.3</version>
             </plugin>
 
-            <!-- Genera un .jar ejecutable con: java -jar target/gestion-aeropuerto-2.0.0.jar -->
+            <!-- Indica la clase principal del .jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -62,6 +70,37 @@
                         </manifest>
                     </archive>
                 </configuration>
+            </plugin>
+
+            <!-- Empaqueta el programa y FlatLaf en un solo .jar ejecutable:
+                 java -jar target/gestion-aeropuerto-2.1.0.jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <!-- Quita firmas y metadatos de las librerías que no aplican al .jar combinado -->
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

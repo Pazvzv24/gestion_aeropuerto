@@ -1,11 +1,17 @@
 package io.github.pazvzv24.aeropuerto;
 
+import io.github.pazvzv24.aeropuerto.ui.Tema;
+import io.github.pazvzv24.aeropuerto.ui.VentanaPrincipal;
+import java.awt.GraphicsEnvironment;
 import java.io.PrintStream;
+import java.util.Arrays;
 import java.util.OptionalInt;
 import java.util.Scanner;
+import javax.swing.SwingUtilities;
 
 /**
- * Punto de entrada: menú interactivo por consola.
+ * Punto de entrada. Por defecto abre la interfaz gráfica; con el argumento
+ * {@code --consola} (o en un equipo sin pantalla) usa el menú por consola.
  * Toda la entrada del usuario se valida: si escribe algo que no es un número,
  * el programa vuelve a preguntar en vez de cerrarse con un error.
  */
@@ -15,9 +21,23 @@ public class Main {
 
     public static void main(String[] args) {
         Aeropuerto aeropuerto = new Aeropuerto("Aeropuerto Internacional");
-        try (Scanner scanner = new Scanner(System.in)) {
-            ejecutarMenu(aeropuerto, scanner, System.out);
+
+        if (usarConsola(args)) {
+            try (Scanner scanner = new Scanner(System.in)) {
+                ejecutarMenu(aeropuerto, scanner, System.out);
+            }
+            return;
         }
+
+        SwingUtilities.invokeLater(() -> {
+            Tema.iniciar();
+            new VentanaPrincipal(aeropuerto).setVisible(true);
+        });
+    }
+
+    /** Consola si se pide con --consola o si el equipo no tiene pantalla (por ejemplo, un servidor). */
+    static boolean usarConsola(String[] args) {
+        return Arrays.asList(args).contains("--consola") || GraphicsEnvironment.isHeadless();
     }
 
     /** Muestra el menú y procesa opciones hasta que el usuario elige salir o termina la entrada. */

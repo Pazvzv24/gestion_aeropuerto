@@ -97,6 +97,14 @@ class AvionTest {
     }
 
     @Test
+    @DisplayName("El porcentaje de ocupación se calcula sobre la capacidad")
+    void porcentajeOcupacion_SeCalculaSobreLaCapacidad() {
+        assertEquals(0.0, new Avion(1, 80, 0, true).getPorcentajeOcupacion());
+        assertEquals(25.0, new Avion(1, 80, 20, true).getPorcentajeOcupacion());
+        assertEquals(100.0, new Avion(1, 80, 80, true).getPorcentajeOcupacion());
+    }
+
+    @Test
     @DisplayName("Los aviones aleatorios siempre quedan en un estado válido")
     void constructorAleatorio_GeneraSiempreValoresValidos() {
         Random random = new Random(42); // semilla fija: la prueba es reproducible

@@ -41,6 +41,12 @@ class MainTest {
     }
 
     @Test
+    @DisplayName("El argumento --consola abre el menú de texto en vez de la ventana")
+    void usarConsola_ConArgumentoConsola_EsVerdadero() {
+        assertTrue(Main.usarConsola(new String[] {"--consola"}));
+    }
+
+    @Test
     @DisplayName("El menú completo procesa una sesión y termina al elegir Salir")
     void ejecutarMenu_SesionCompleta_TerminaAlSalir() {
         Aeropuerto aeropuerto = new Aeropuerto("Prueba", new Avion(1, 100, 10, true));

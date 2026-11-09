@@ -1,3 +1,5 @@
+package io.github.pazvzv24.aeropuerto;
+
 import java.io.PrintStream;
 import java.util.OptionalInt;
 import java.util.Scanner;

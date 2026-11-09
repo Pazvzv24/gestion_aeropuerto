@@ -1,0 +1,20 @@
+# Dependabot: revisa las dependencias del proyecto.
+version: 2
+updates:
+  # Dependencias de Maven (JUnit y plugins): solo actualizaciones de SEGURIDAD.
+  # Con el límite en 0 no propone actualizaciones normales (evita ruido);
+  # las de seguridad siguen llegando como pull requests.
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Santiago"
+    open-pull-requests-limit: 0
+
+  # Acciones usadas en el workflow (checkout, setup-java, upload-artifact)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

@@ -1,3 +1,5 @@
+package io.github.pazvzv24.aeropuerto;
+
 /**
  * Pasajero con nombre e identificador.
  * Modelo base para una futura lista de pasajeros por vuelo.

@@ -1,3 +1,5 @@
+package io.github.pazvzv24.aeropuerto;
+
 /**
  * Resultado de una operación sobre un avión (patrón Result Object).
  * Las operaciones devuelven uno de estos valores en vez de lanzar excepciones,

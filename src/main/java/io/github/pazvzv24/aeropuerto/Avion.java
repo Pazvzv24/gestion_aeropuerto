@@ -1,3 +1,5 @@
+package io.github.pazvzv24.aeropuerto;
+
 import java.util.Random;
 
 /**

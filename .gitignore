@@ -1,17 +1,18 @@
-# Archivos de configuración de editores
-.vscode/
-.idea/
-.DS_Store
+# Resultado de la compilación de Maven
+target/
 
-# Archivos de caché o temporales
-__pycache__/
-*.pyc
-
-# Archivos de entorno (si llegaras a usar)
-venv/
-env/
-.env
-
-# Java
+# Clases compiladas a mano (javac)
 *.class
 bin/
+
+# Configuración de editores
+.vscode/
+.idea/
+*.iml
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Variables de entorno con secretos (nunca se suben)
+.env

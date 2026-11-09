@@ -3,6 +3,7 @@ package io.github.pazvzv24.aeropuerto.ui;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import io.github.pazvzv24.aeropuerto.EstadoAvion;
 import java.awt.Color;
 import javax.swing.UIManager;
 
@@ -57,6 +58,24 @@ public final class Tema {
     /** Color de acento (títulos y cifras). */
     public static Color acento() {
         return oscuro ? new Color(0x60A5FA) : new Color(0x1D4ED8);
+    }
+
+    /** Color de cada estado del avión, para la tabla y el panel de operaciones. */
+    public static Color colorEstado(EstadoAvion estado) {
+        switch (estado) {
+            case DISPONIBLE:
+                return exito();
+            case EMBARCANDO:
+                return acento();
+            case EN_VUELO:
+                return oscuro ? new Color(0xC084FC) : new Color(0x7E22CE);
+            case DESEMBARCANDO:
+                return oscuro ? new Color(0x2DD4BF) : new Color(0x0F766E);
+            case EN_MANTENIMIENTO:
+                return oscuro ? new Color(0xFBBF24) : new Color(0xB45309);
+            default:
+                return textoSecundario();
+        }
     }
 
     /** Color de texto secundario. */

@@ -6,11 +6,11 @@
 
     <groupId>io.github.pazvzv24</groupId>
     <artifactId>gestion-aeropuerto</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
     <packaging>jar</packaging>
 
-    <name>Gestión de Aeropuerto</name>
-    <description>Simulación orientada a objetos del embarque y desembarque de pasajeros en un aeropuerto.</description>
+    <name>Altamar Airlines · Gestión de flota</name>
+    <description>Gestión de la flota de una aerolínea ficticia en Java 17: estados de los aviones con reglas, embarque de pasajeros e interfaz gráfica.</description>
     <url>https://github.com/Pazvzv24/gestion_aeropuerto</url>
 
     <properties>
@@ -73,7 +73,7 @@
             </plugin>
 
             <!-- Empaqueta el programa y FlatLaf en un solo .jar ejecutable:
-                 java -jar target/gestion-aeropuerto-2.1.0.jar -->
+                 java -jar target/gestion-aeropuerto-2.2.0.jar -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

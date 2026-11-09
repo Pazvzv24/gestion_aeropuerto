@@ -1,70 +1,95 @@
 package io.github.pazvzv24.aeropuerto.ui;
 
-import io.github.pazvzv24.aeropuerto.Aeropuerto;
+import io.github.pazvzv24.aeropuerto.Aerolinea;
 import io.github.pazvzv24.aeropuerto.Avion;
+import io.github.pazvzv24.aeropuerto.EstadoAvion;
+import io.github.pazvzv24.aeropuerto.ModeloAvion;
 import io.github.pazvzv24.aeropuerto.OperationResult;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.RowFilter;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableRowSorter;
 
 /**
- * Ventana principal: resumen del aeropuerto, tabla de aviones y panel de operaciones.
- * La ventana solo muestra datos y llama a Aeropuerto: las reglas del negocio
+ * Ventana principal: resumen de la flota, tabla de aviones con filtros y panel de operaciones.
+ * La ventana solo muestra datos y llama a Aerolinea: las reglas del negocio
  * están en las clases del modelo y se prueban por separado.
  */
 public final class VentanaPrincipal extends JFrame {
 
     private static final long serialVersionUID = 1L;
     private static final String ESTILO_TARJETA = "arc: 16; background: $Table.background";
+    private static final String TODOS_LOS_ESTADOS = "Todos los estados";
 
-    private final transient Aeropuerto aeropuerto;
+    private final transient Aerolinea aerolinea;
     private final AvionesTableModel modelo;
     private final JTable tabla;
+    private final transient TableRowSorter<AvionesTableModel> ordenador;
 
     private final JLabel lblTitulo = new JLabel();
-    private final JLabel lblSubtitulo = new JLabel("Panel de gestión de embarque");
+    private final JButton btnIncorporar = new JButton("+ Incorporar avión");
     private final JButton btnTema = new JButton("Tema oscuro");
 
-    private final JLabel valorAviones = new JLabel();
+    private final JLabel valorFlota = new JLabel();
+    private final JLabel valorEnVuelo = new JLabel();
     private final JLabel valorPasajeros = new JLabel();
-    private final JLabel valorDisponibles = new JLabel();
-    private final JLabel valorCancelados = new JLabel();
+    private final JLabel valorMantenimiento = new JLabel();
+
+    private final JTextField txtBuscar = new JTextField();
+    private final JComboBox<Object> cmbEstado = new JComboBox<>();
 
     private final JLabel lblSeleccionado = new JLabel("Ninguno");
+    private final JLabel lblEstadoAvion = new JLabel(" ");
+    private final JLabel lblDescripcionEstado = new JLabel(" ");
     private final JSpinner spnCantidad = new JSpinner(new SpinnerNumberModel(1, 1, 1000, 1));
     private final JButton btnSubir = new JButton("Subir pasajeros");
     private final JButton btnBajar = new JButton("Bajar pasajeros");
+    private final JPanel panelAcciones = new JPanel();
     private final JLabel lblResultado = new JLabel(" ");
-    private final JLabel lblEstado = new JLabel("Seleccione un avión de la tabla para operar.");
+    private final JLabel lblBarraEstado = new JLabel("Seleccione un avión de la tabla para operar.");
 
-    public VentanaPrincipal(Aeropuerto aeropuerto) {
-        super("Gestión de Aeropuerto");
-        this.aeropuerto = aeropuerto;
-        this.modelo = new AvionesTableModel(aeropuerto);
+    public VentanaPrincipal(Aerolinea aerolinea) {
+        super(aerolinea.getNombre() + " · Gestión de flota");
+        this.aerolinea = aerolinea;
+        this.modelo = new AvionesTableModel(aerolinea);
         this.tabla = new JTable(modelo);
+        this.ordenador = new TableRowSorter<>(modelo);
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(900, 580));
-        setSize(1040, 640);
+        setMinimumSize(new Dimension(1000, 640));
+        setSize(1180, 720);
         setLocationRelativeTo(null);
 
         JPanel contenido = new JPanel(new BorderLayout(0, 16));
@@ -74,7 +99,6 @@ public final class VentanaPrincipal extends JFrame {
         contenido.add(crearBarraEstado(), BorderLayout.SOUTH);
         setContentPane(contenido);
 
-        getRootPane().setDefaultButton(btnSubir);
         aplicarColores();
         actualizarResumen();
         actualizarSeleccion();
@@ -83,30 +107,35 @@ public final class VentanaPrincipal extends JFrame {
     // ------------------------------------------------------------ Construcción
 
     private JPanel crearEncabezado() {
-        lblTitulo.setText(aeropuerto.getNombre());
+        lblTitulo.setText(aerolinea.getNombre());
         lblTitulo.setFont(lblTitulo.getFont().deriveFont(Font.BOLD, 24f));
+        JLabel lblSubtitulo = etiquetaSecundaria("Gestión de flota");
         lblSubtitulo.setFont(lblSubtitulo.getFont().deriveFont(14f));
-        lblSubtitulo.putClientProperty("esTextoSecundario", Boolean.TRUE);
 
         JPanel titulos = new JPanel(new GridLayout(2, 1, 0, 2));
         titulos.setOpaque(false);
         titulos.add(lblTitulo);
         titulos.add(lblSubtitulo);
 
+        btnIncorporar.addActionListener(e -> incorporarAvion());
         btnTema.setFocusable(false);
         btnTema.addActionListener(e -> cambiarTema());
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        botones.setOpaque(false);
+        botones.add(btnIncorporar);
+        botones.add(btnTema);
 
         JPanel barra = new JPanel(new BorderLayout());
         barra.setOpaque(false);
         barra.add(titulos, BorderLayout.WEST);
-        barra.add(btnTema, BorderLayout.EAST);
+        barra.add(botones, BorderLayout.EAST);
 
         JPanel tarjetas = new JPanel(new GridLayout(1, 4, 12, 0));
         tarjetas.setOpaque(false);
-        tarjetas.add(crearTarjeta("Aviones", valorAviones));
+        tarjetas.add(crearTarjeta("Flota activa", valorFlota));
+        tarjetas.add(crearTarjeta("En vuelo", valorEnVuelo));
         tarjetas.add(crearTarjeta("Pasajeros a bordo", valorPasajeros));
-        tarjetas.add(crearTarjeta("Asientos disponibles", valorDisponibles));
-        tarjetas.add(crearTarjeta("Vuelos cancelados", valorCancelados));
+        tarjetas.add(crearTarjeta("En mantenimiento", valorMantenimiento));
 
         JPanel encabezado = new JPanel(new BorderLayout(0, 16));
         encabezado.setOpaque(false);
@@ -116,9 +145,8 @@ public final class VentanaPrincipal extends JFrame {
     }
 
     private JPanel crearTarjeta(String titulo, JLabel valor) {
-        JLabel lblTituloTarjeta = new JLabel(titulo);
+        JLabel lblTituloTarjeta = etiquetaSecundaria(titulo);
         lblTituloTarjeta.setFont(lblTituloTarjeta.getFont().deriveFont(13f));
-        lblTituloTarjeta.putClientProperty("esTextoSecundario", Boolean.TRUE);
         valor.setFont(valor.getFont().deriveFont(Font.BOLD, 26f));
 
         JPanel tarjeta = new JPanel(new GridLayout(2, 1, 0, 4));
@@ -131,21 +159,62 @@ public final class VentanaPrincipal extends JFrame {
 
     private JPanel crearCuerpo() {
         configurarTabla();
-        JScrollPane scroll = new JScrollPane(tabla);
+
+        JPanel izquierda = new JPanel(new BorderLayout(0, 10));
+        izquierda.setOpaque(false);
+        izquierda.add(crearFiltros(), BorderLayout.NORTH);
+        izquierda.add(new JScrollPane(tabla), BorderLayout.CENTER);
 
         JPanel cuerpo = new JPanel(new BorderLayout(16, 0));
         cuerpo.setOpaque(false);
-        cuerpo.add(scroll, BorderLayout.CENTER);
+        cuerpo.add(izquierda, BorderLayout.CENTER);
         cuerpo.add(crearPanelOperaciones(), BorderLayout.EAST);
         return cuerpo;
     }
 
+    private JPanel crearFiltros() {
+        txtBuscar.putClientProperty("JTextField.placeholderText", "Buscar por matrícula (ej. CC-AMA)");
+        txtBuscar.putClientProperty("JTextField.showClearButton", true);
+        txtBuscar.setPreferredSize(new Dimension(280, txtBuscar.getPreferredSize().height));
+        txtBuscar.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                aplicarFiltros();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                aplicarFiltros();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                aplicarFiltros();
+            }
+        });
+
+        DefaultComboBoxModel<Object> estados = new DefaultComboBoxModel<>();
+        estados.addElement(TODOS_LOS_ESTADOS);
+        for (EstadoAvion estado : EstadoAvion.values()) {
+            estados.addElement(estado);
+        }
+        cmbEstado.setModel(estados);
+        cmbEstado.addActionListener(e -> aplicarFiltros());
+
+        JPanel filtros = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        filtros.setOpaque(false);
+        filtros.add(txtBuscar);
+        filtros.add(javax.swing.Box.createHorizontalStrut(10));
+        filtros.add(cmbEstado);
+        return filtros;
+    }
+
     private void configurarTabla() {
+        tabla.setRowSorter(ordenador);
         tabla.setRowHeight(34);
         tabla.setFillsViewportHeight(true);
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabla.getTableHeader().setReorderingAllowed(false);
-        tabla.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer centrado = new DefaultTableCellRenderer();
         centrado.setHorizontalAlignment(SwingConstants.CENTER);
@@ -154,8 +223,9 @@ public final class VentanaPrincipal extends JFrame {
         }
         tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_OCUPACION).setCellRenderer(new RenderOcupacion());
         tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_ESTADO).setCellRenderer(new RenderEstado());
-        tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_ID).setMaxWidth(70);
-        tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_OCUPACION).setPreferredWidth(170);
+        tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_MODELO).setPreferredWidth(150);
+        tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_OCUPACION).setPreferredWidth(150);
+        tabla.getColumnModel().getColumn(AvionesTableModel.COLUMNA_ESTADO).setPreferredWidth(130);
 
         tabla.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -168,15 +238,18 @@ public final class VentanaPrincipal extends JFrame {
         JLabel titulo = new JLabel("Operaciones");
         titulo.setFont(titulo.getFont().deriveFont(Font.BOLD, 16f));
         lblSeleccionado.setFont(lblSeleccionado.getFont().deriveFont(Font.BOLD, 15f));
+        lblEstadoAvion.setFont(lblEstadoAvion.getFont().deriveFont(Font.BOLD));
 
-        btnSubir.addActionListener(e -> ejecutar(true));
-        btnBajar.addActionListener(e -> ejecutar(false));
+        btnSubir.addActionListener(e -> moverPasajeros(true));
+        btnBajar.addActionListener(e -> moverPasajeros(false));
+        panelAcciones.setLayout(new BoxLayout(panelAcciones, BoxLayout.Y_AXIS));
+        panelAcciones.setOpaque(false);
         lblResultado.setVerticalAlignment(SwingConstants.TOP);
 
         JPanel panel = new JPanel(new GridBagLayout());
         panel.putClientProperty("FlatLaf.style", ESTILO_TARJETA);
         panel.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
-        panel.setPreferredSize(new Dimension(280, 0));
+        panel.setPreferredSize(new Dimension(300, 0));
 
         GridBagConstraints g = new GridBagConstraints();
         g.gridx = 0;
@@ -184,25 +257,29 @@ public final class VentanaPrincipal extends JFrame {
         g.weightx = 1;
         g.anchor = GridBagConstraints.NORTHWEST;
 
-        g.insets = new Insets(0, 0, 16, 0);
-        panel.add(titulo, g);
-        g.insets = new Insets(0, 0, 4, 0);
-        panel.add(etiquetaSecundaria("Avión seleccionado"), g);
-        g.insets = new Insets(0, 0, 16, 0);
-        panel.add(lblSeleccionado, g);
-        g.insets = new Insets(0, 0, 4, 0);
-        panel.add(etiquetaSecundaria("Cantidad de pasajeros"), g);
-        g.insets = new Insets(0, 0, 16, 0);
-        panel.add(spnCantidad, g);
-        g.insets = new Insets(0, 0, 8, 0);
-        panel.add(btnSubir, g);
-        g.insets = new Insets(0, 0, 16, 0);
-        panel.add(btnBajar, g);
+        agregar(panel, g, titulo, 14);
+        agregar(panel, g, etiquetaSecundaria("Avión seleccionado"), 2);
+        agregar(panel, g, lblSeleccionado, 2);
+        agregar(panel, g, lblEstadoAvion, 2);
+        agregar(panel, g, lblDescripcionEstado, 16);
+        agregar(panel, g, etiquetaSecundaria("Pasajeros"), 4);
+        agregar(panel, g, spnCantidad, 8);
+        JPanel botonesPasajeros = new JPanel(new GridLayout(1, 2, 8, 0));
+        botonesPasajeros.setOpaque(false);
+        botonesPasajeros.add(btnSubir);
+        botonesPasajeros.add(btnBajar);
+        agregar(panel, g, botonesPasajeros, 16);
+        agregar(panel, g, etiquetaSecundaria("Cambiar estado"), 6);
+        agregar(panel, g, panelAcciones, 16);
         g.weighty = 1;
         g.fill = GridBagConstraints.BOTH;
-        g.insets = new Insets(0, 0, 0, 0);
-        panel.add(lblResultado, g);
+        agregar(panel, g, lblResultado, 0);
         return panel;
+    }
+
+    private static void agregar(JPanel panel, GridBagConstraints g, Component componente, int espacioAbajo) {
+        g.insets = new Insets(0, 0, espacioAbajo, 0);
+        panel.add(componente, g);
     }
 
     private JLabel etiquetaSecundaria(String texto) {
@@ -214,36 +291,105 @@ public final class VentanaPrincipal extends JFrame {
     private JPanel crearBarraEstado() {
         JPanel barra = new JPanel(new BorderLayout());
         barra.setOpaque(false);
-        lblEstado.putClientProperty("esTextoSecundario", Boolean.TRUE);
-        barra.add(lblEstado, BorderLayout.WEST);
+        lblBarraEstado.putClientProperty("esTextoSecundario", Boolean.TRUE);
+        barra.add(lblBarraEstado, BorderLayout.WEST);
         return barra;
     }
 
     // ------------------------------------------------------------ Comportamiento
 
-    /** Sube o baja pasajeros del avión seleccionado y muestra el resultado. */
-    private void ejecutar(boolean subir) {
+    private void aplicarFiltros() {
+        String texto = txtBuscar.getText().trim().toUpperCase(Locale.ROOT);
+        Object estado = cmbEstado.getSelectedItem();
+        List<RowFilter<AvionesTableModel, Integer>> filtros = new ArrayList<>();
+        if (!texto.isEmpty()) {
+            filtros.add(new RowFilter<AvionesTableModel, Integer>() {
+                @Override
+                public boolean include(Entry<? extends AvionesTableModel, ? extends Integer> fila) {
+                    return fila.getStringValue(AvionesTableModel.COLUMNA_MATRICULA).contains(texto);
+                }
+            });
+        }
+        if (estado instanceof EstadoAvion) {
+            filtros.add(new RowFilter<AvionesTableModel, Integer>() {
+                @Override
+                public boolean include(Entry<? extends AvionesTableModel, ? extends Integer> fila) {
+                    return fila.getValue(AvionesTableModel.COLUMNA_ESTADO) == estado;
+                }
+            });
+        }
+        ordenador.setRowFilter(filtros.isEmpty() ? null : RowFilter.andFilter(filtros));
+        lblBarraEstado.setText("Mostrando " + tabla.getRowCount() + " de " + modelo.getRowCount() + " aviones.");
+    }
+
+    private void moverPasajeros(boolean subir) {
         Avion avion = avionSeleccionado();
         if (avion == null) {
-            mostrarResultado(null, "Seleccione un avión de la tabla.");
             return;
         }
         int cantidad = (Integer) spnCantidad.getValue();
         OperationResult resultado = subir
-                ? aeropuerto.subirPasajeros(avion.getId(), cantidad)
-                : aeropuerto.bajarPasajeros(avion.getId(), cantidad);
+                ? aerolinea.subirPasajeros(avion.getMatricula(), cantidad)
+                : aerolinea.bajarPasajeros(avion.getMatricula(), cantidad);
+        String accion = (subir ? "Subir " : "Bajar ") + cantidad + " pasajero" + (cantidad == 1 ? "" : "s")
+                + " · " + avion.getMatricula();
+        terminarOperacion(avion.getMatricula(), resultado, accion);
+    }
 
-        int filaVista = tabla.getSelectedRow();
+    private void cambiarEstado(EstadoAvion destino) {
+        Avion avion = avionSeleccionado();
+        if (avion == null) {
+            return;
+        }
+        String accion = avion.getEstado().accionHacia(destino) + " · " + avion.getMatricula();
+        if (destino == EstadoAvion.FUERA_DE_SERVICIO) {
+            int respuesta = JOptionPane.showConfirmDialog(this,
+                    "¿Dar de baja el avión " + avion.getMatricula() + "?\nEsta acción no se puede deshacer.",
+                    "Dar de baja", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (respuesta != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+        terminarOperacion(avion.getMatricula(), aerolinea.cambiarEstado(avion.getMatricula(), destino), accion);
+    }
+
+    private void incorporarAvion() {
+        JTextField txtMatricula = new JTextField();
+        txtMatricula.putClientProperty("JTextField.placeholderText", "CC-XXX");
+        JComboBox<ModeloAvion> cmbModelo = new JComboBox<>(ModeloAvion.values());
+
+        JPanel formulario = new JPanel(new GridLayout(4, 1, 0, 4));
+        formulario.add(new JLabel("Matrícula (formato chileno CC-XXX):"));
+        formulario.add(txtMatricula);
+        formulario.add(new JLabel("Modelo:"));
+        formulario.add(cmbModelo);
+
+        int respuesta = JOptionPane.showConfirmDialog(this, formulario, "Incorporar avión",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (respuesta != JOptionPane.OK_OPTION) {
+            return;
+        }
+        String matricula = Avion.normalizarMatricula(txtMatricula.getText());
+        ModeloAvion modeloAvion = (ModeloAvion) cmbModelo.getSelectedItem();
+        OperationResult resultado = aerolinea.incorporarAvion(matricula, modeloAvion);
+        terminarOperacion(matricula, resultado, "Incorporar " + matricula + " · " + modeloAvion);
+    }
+
+    /** Actualiza la tabla y el resumen, mantiene seleccionado el avión y muestra el resultado. */
+    private void terminarOperacion(String matricula, OperationResult resultado, String accion) {
         modelo.actualizar();
-        if (filaVista >= 0 && filaVista < tabla.getRowCount()) {
-            tabla.setRowSelectionInterval(filaVista, filaVista);
+        int filaModelo = modelo.buscarFila(matricula);
+        if (filaModelo >= 0) {
+            int filaVista = tabla.convertRowIndexToView(filaModelo);
+            if (filaVista >= 0) {
+                tabla.setRowSelectionInterval(filaVista, filaVista);
+                tabla.scrollRectToVisible(tabla.getCellRect(filaVista, 0, true));
+            }
         }
         actualizarResumen();
-
-        String accion = (subir ? "Subir " : "Bajar ") + cantidad + " pasajero" + (cantidad == 1 ? "" : "s")
-                + " · avión " + avion.getId();
+        actualizarSeleccion();
         mostrarResultado(resultado, accion);
-        lblEstado.setText(accion + ": " + (resultado.isSuccess() ? "operación exitosa." : resultado.getMessage()));
+        lblBarraEstado.setText(accion + ": " + (resultado.isSuccess() ? "operación exitosa." : resultado.getMessage()));
     }
 
     private Avion avionSeleccionado() {
@@ -254,38 +400,57 @@ public final class VentanaPrincipal extends JFrame {
         return modelo.getAvion(tabla.convertRowIndexToModel(filaVista));
     }
 
+    /** Muestra los datos del avión seleccionado y solo las acciones que su estado permite. */
     private void actualizarSeleccion() {
         Avion avion = avionSeleccionado();
-        boolean hay = avion != null;
-        btnSubir.setEnabled(hay && avion.getEstado());
-        btnBajar.setEnabled(hay);
-        if (!hay) {
+        panelAcciones.removeAll();
+        if (avion == null) {
             lblSeleccionado.setText("Ninguno");
+            lblEstadoAvion.setText(" ");
+            lblDescripcionEstado.setText("Seleccione un avión de la tabla.");
+            btnSubir.setEnabled(false);
+            btnBajar.setEnabled(false);
         } else {
-            lblSeleccionado.setText("Avión " + avion.getId() + " · " + (avion.getEstado() ? "Activo" : "Cancelado"));
-            btnSubir.setToolTipText(avion.getEstado() ? null : "No se puede embarcar en un vuelo cancelado");
+            EstadoAvion estado = avion.getEstado();
+            lblSeleccionado.setText(avion.getMatricula() + " · " + avion.getModelo());
+            lblEstadoAvion.setText("● " + estado + " (" + avion.getPasajerosActuales() + "/"
+                    + avion.getCantidadMaxima() + " pasajeros)");
+            lblEstadoAvion.setForeground(Tema.colorEstado(estado));
+            lblDescripcionEstado.setText("<html><div style='width:215px'>" + estado.getDescripcion() + "</div></html>");
+            btnSubir.setEnabled(estado.permiteSubirPasajeros());
+            btnBajar.setEnabled(estado.permiteBajarPasajeros());
+            btnSubir.setToolTipText(estado.permiteSubirPasajeros() ? null : "Solo se suben pasajeros durante el embarque");
+            btnBajar.setToolTipText(estado.permiteBajarPasajeros() ? null : "Solo se bajan pasajeros en embarque o desembarque");
+
+            for (EstadoAvion destino : estado.getSiguientes()) {
+                JButton boton = new JButton(estado.accionHacia(destino));
+                boton.setAlignmentX(Component.LEFT_ALIGNMENT);
+                boton.setMaximumSize(new Dimension(Integer.MAX_VALUE, boton.getPreferredSize().height));
+                boton.addActionListener(e -> cambiarEstado(destino));
+                panelAcciones.add(boton);
+                panelAcciones.add(javax.swing.Box.createVerticalStrut(6));
+            }
+            if (estado.getSiguientes().isEmpty()) {
+                panelAcciones.add(etiquetaSecundaria("Sin acciones: el avión fue dado de baja."));
+            }
         }
+        aplicarTextoSecundario(panelAcciones);
+        panelAcciones.revalidate();
+        panelAcciones.repaint();
     }
 
     private void actualizarResumen() {
-        int cancelados = 0;
-        for (Avion avion : aeropuerto.getAviones()) {
-            if (!avion.getEstado()) {
-                cancelados++;
-            }
-        }
-        valorAviones.setText(String.valueOf(aeropuerto.getAviones().size()));
-        valorPasajeros.setText(String.valueOf(aeropuerto.calcularTotalPasajeros()));
-        valorDisponibles.setText(String.valueOf(aeropuerto.calcularTotalDisponibles()));
-        valorCancelados.setText(String.valueOf(cancelados));
+        valorFlota.setText(aerolinea.getCantidadAvionesActivos() + " / " + Aerolinea.CAPACIDAD_FLOTA);
+        valorEnVuelo.setText(String.valueOf(aerolinea.contarPorEstado(EstadoAvion.EN_VUELO)));
+        valorPasajeros.setText(String.valueOf(aerolinea.calcularTotalPasajeros()));
+        valorMantenimiento.setText(String.valueOf(aerolinea.contarPorEstado(EstadoAvion.EN_MANTENIMIENTO)));
     }
 
     private void mostrarResultado(OperationResult resultado, String accion) {
-        boolean exito = resultado != null && resultado.isSuccess();
-        String detalle = resultado == null ? accion
-                : exito ? accion + "<br>Operación exitosa."
+        boolean exito = resultado.isSuccess();
+        String detalle = exito ? accion + "<br>Operación exitosa."
                 : accion + "<br>" + resultado.getMessage() + " (código " + resultado.getStatusCode() + ")";
-        lblResultado.setText("<html><div style='width:220px'>" + detalle + "</div></html>");
+        lblResultado.setText("<html><div style='width:215px'>" + detalle + "</div></html>");
         lblResultado.setForeground(exito ? Tema.exito() : Tema.error());
         lblResultado.putClientProperty("exito", exito);
     }
@@ -294,15 +459,16 @@ public final class VentanaPrincipal extends JFrame {
         Tema.alternar();
         btnTema.setText(Tema.esOscuro() ? "Tema claro" : "Tema oscuro");
         aplicarColores();
+        actualizarSeleccion();
     }
 
     /** Colores que dependen del tema (se vuelven a aplicar al cambiarlo). */
     private void aplicarColores() {
         lblTitulo.setForeground(Tema.acento());
-        valorAviones.setForeground(Tema.acento());
+        valorFlota.setForeground(Tema.acento());
+        valorEnVuelo.setForeground(Tema.colorEstado(EstadoAvion.EN_VUELO));
         valorPasajeros.setForeground(Tema.acento());
-        valorDisponibles.setForeground(Tema.acento());
-        valorCancelados.setForeground(Tema.error());
+        valorMantenimiento.setForeground(Tema.colorEstado(EstadoAvion.EN_MANTENIMIENTO));
         aplicarTextoSecundario(getContentPane());
         Object exito = lblResultado.getClientProperty("exito");
         if (exito != null) {
@@ -315,8 +481,8 @@ public final class VentanaPrincipal extends JFrame {
         if (componente instanceof JLabel && Boolean.TRUE.equals(((JLabel) componente).getClientProperty("esTextoSecundario"))) {
             componente.setForeground(Tema.textoSecundario());
         }
-        if (componente instanceof java.awt.Container) {
-            for (Component hijo : ((java.awt.Container) componente).getComponents()) {
+        if (componente instanceof Container) {
+            for (Component hijo : ((Container) componente).getComponents()) {
                 aplicarTextoSecundario(hijo);
             }
         }
@@ -345,7 +511,7 @@ public final class VentanaPrincipal extends JFrame {
         }
     }
 
-    /** Muestra el estado del vuelo en verde (activo) o rojo (cancelado). */
+    /** Muestra el estado del avión con su color. */
     private static final class RenderEstado extends DefaultTableCellRenderer {
         private static final long serialVersionUID = 1L;
 
@@ -358,8 +524,8 @@ public final class VentanaPrincipal extends JFrame {
                                                        boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             setFont(getFont().deriveFont(Font.BOLD));
-            if (!isSelected) {
-                setForeground("Activo".equals(value) ? Tema.exito() : Tema.error());
+            if (!isSelected && value instanceof EstadoAvion) {
+                setForeground(Tema.colorEstado((EstadoAvion) value));
             }
             return this;
         }

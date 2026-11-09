@@ -22,7 +22,7 @@ class MainTest {
     }
 
     @Test
-    @DisplayName("Si el usuario escribe letras, se le vuelve a preguntar en vez de cerrarse")
+    @DisplayName("Si el usuario escribe letras donde va un número, se le vuelve a preguntar")
     void leerEntero_ConTextoInvalido_VuelveAPreguntar() {
         Scanner scanner = new Scanner("abc\n\n12\n");
 
@@ -47,20 +47,32 @@ class MainTest {
     }
 
     @Test
-    @DisplayName("El menú completo procesa una sesión y termina al elegir Salir")
+    @DisplayName("El menú completo procesa una sesión: embarque, error de capacidad, despegue y salida")
     void ejecutarMenu_SesionCompleta_TerminaAlSalir() {
-        Aeropuerto aeropuerto = new Aeropuerto("Prueba", new Avion(1, 100, 10, true));
-        // Subir 5 al avión 1, intentar bajar 999, escribir una letra, mostrar total y salir
-        Scanner scanner = new Scanner("5\n1\n5\n6\n1\n999\nx\n2\n7\n");
+        Aerolinea aerolinea = new Aerolinea("Prueba", new Avion("CC-AAA", ModeloAvion.A319));
+        // 6: cambiar estado de CC-AAA -> 1 (Iniciar embarque)
+        // 4: subir 100 a cc-aaa | 4: subir 999 (no caben) | x: entrada inválida
+        // 6: cambiar estado -> 1 (Despegar) | 2: resumen | 8: salir
+        String entrada = String.join("\n",
+                "6", "CC-AAA", "1",
+                "4", "cc-aaa", "100",
+                "4", "CC-AAA", "999",
+                "x",
+                "6", "CC-AAA", "1",
+                "2",
+                "8") + "\n";
 
-        Main.ejecutarMenu(aeropuerto, scanner, salida);
+        Main.ejecutarMenu(aerolinea, new Scanner(entrada), salida);
 
         String texto = textoSalida();
-        assertEquals(15, aeropuerto.calcularTotalPasajeros());
+        assertEquals(EstadoAvion.EN_VUELO, aerolinea.buscarAvion("CC-AAA").getEstado());
+        assertEquals(100, aerolinea.calcularTotalPasajeros());
+        assertTrue(texto.contains("[OK] Iniciar embarque"));
         assertTrue(texto.contains("[OK] Subir pasajeros"));
-        assertTrue(texto.contains(OperationResult.NOT_ENOUGH_PASSENGERS.getMessage()));
+        assertTrue(texto.contains(OperationResult.CAPACITY_EXCEEDED.getMessage()));
         assertTrue(texto.contains("Entrada inválida"));
-        assertTrue(texto.contains("Total de pasajeros a bordo en el aeropuerto: 15"));
+        assertTrue(texto.contains("[OK] Despegar"));
+        assertTrue(texto.contains("Pasajeros a bordo: 100"));
         assertTrue(texto.contains("Saliendo..."));
     }
 }

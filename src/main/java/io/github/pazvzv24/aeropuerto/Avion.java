@@ -1,73 +1,81 @@
 package io.github.pazvzv24.aeropuerto;
 
-import java.util.Random;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
- * Avión con capacidad máxima, pasajeros a bordo y estado del vuelo (activo o cancelado).
- * Garantiza siempre que 0 &lt;= pasajerosActuales &lt;= cantidadMaxima.
+ * Avión de la flota, identificado por su matrícula chilena (formato CC-AMA).
+ * Su capacidad la define el modelo, y su estado sigue las reglas de {@link EstadoAvion}.
+ * Garantiza siempre que 0 &lt;= pasajerosActuales &lt;= capacidad, y que el avión
+ * esté vacío en los estados que lo exigen (disponible, en mantenimiento o fuera de servicio).
  */
 public class Avion {
 
-    /** Capacidad mínima y máxima de los aviones generados al azar. */
-    public static final int CAPACIDAD_MINIMA_ALEATORIA = 50;
-    public static final int CAPACIDAD_MAXIMA_ALEATORIA = 150;
+    /** Matrícula chilena: prefijo de nacionalidad "CC-" seguido de 3 letras. */
+    private static final Pattern FORMATO_MATRICULA = Pattern.compile("CC-[A-Z]{3}");
 
-    private final int id;
-    private final int cantidadMaxima;
+    private final String matricula;
+    private final ModeloAvion modelo;
     private int pasajerosActuales;
-    private final boolean estado;
+    private EstadoAvion estado;
+
+    /** Crea un avión nuevo: disponible y sin pasajeros. */
+    public Avion(String matricula, ModeloAvion modelo) {
+        this(matricula, modelo, EstadoAvion.DISPONIBLE, 0);
+    }
 
     /**
-     * Crea un avión con valores explícitos.
+     * Crea un avión con un estado y pasajeros conocidos (por ejemplo, al cargar la flota).
      *
-     * @throws IllegalArgumentException si los valores no forman un avión válido
+     * @throws IllegalArgumentException si los datos no forman un avión válido
      */
-    public Avion(int id, int cantidadMaxima, int pasajerosActuales, boolean estado) {
-        if (id <= 0) {
-            throw new IllegalArgumentException("El ID del avión debe ser mayor que 0.");
+    public Avion(String matricula, ModeloAvion modelo, EstadoAvion estado, int pasajerosActuales) {
+        if (!esMatriculaValida(matricula)) {
+            throw new IllegalArgumentException("Matrícula inválida: use el formato CC-XXX.");
         }
-        if (cantidadMaxima <= 0) {
-            throw new IllegalArgumentException("La capacidad máxima debe ser mayor que 0.");
+        if (modelo == null) {
+            throw new IllegalArgumentException("El modelo del avión es obligatorio.");
         }
-        if (pasajerosActuales < 0 || pasajerosActuales > cantidadMaxima) {
+        if (estado == null) {
+            throw new IllegalArgumentException("El estado del avión es obligatorio.");
+        }
+        if (pasajerosActuales < 0 || pasajerosActuales > modelo.getCapacidad()) {
             throw new IllegalArgumentException(
-                    "Los pasajeros a bordo deben estar entre 0 y la capacidad máxima (" + cantidadMaxima + ").");
+                    "Los pasajeros a bordo deben estar entre 0 y la capacidad del modelo (" + modelo.getCapacidad() + ").");
         }
-        this.id = id;
-        this.cantidadMaxima = cantidadMaxima;
-        this.pasajerosActuales = pasajerosActuales;
+        if (estado.requiereAvionVacio() && pasajerosActuales > 0) {
+            throw new IllegalArgumentException("Un avión en estado " + estado + " no puede tener pasajeros a bordo.");
+        }
+        this.matricula = normalizarMatricula(matricula);
+        this.modelo = modelo;
         this.estado = estado;
+        this.pasajerosActuales = pasajerosActuales;
     }
 
-    /** Crea un avión con capacidad, pasajeros y estado aleatorios. */
-    public Avion(int id) {
-        this(id, new Random());
+    /** Acepta mayúsculas o minúsculas y espacios alrededor: " cc-ama " es válida. */
+    public static boolean esMatriculaValida(String matricula) {
+        return matricula != null && FORMATO_MATRICULA.matcher(normalizarMatricula(matricula)).matches();
     }
 
-    /**
-     * Crea un avión aleatorio usando el generador indicado.
-     * Recibir el generador permite reproducir los mismos aviones en las pruebas.
-     */
-    public Avion(int id, Random random) {
-        this(id, capacidadAleatoria(random), random);
+    /** Deja la matrícula en mayúsculas y sin espacios alrededor. */
+    public static String normalizarMatricula(String matricula) {
+        return matricula == null ? "" : matricula.trim().toUpperCase(Locale.ROOT);
     }
 
-    private Avion(int id, int capacidad, Random random) {
-        this(id, capacidad, random.nextInt(capacidad + 1), random.nextBoolean());
+    public String getMatricula() {
+        return matricula;
     }
 
-    private static int capacidadAleatoria(Random random) {
-        // Entre 50 y 150, ambos incluidos
-        return CAPACIDAD_MINIMA_ALEATORIA
-                + random.nextInt(CAPACIDAD_MAXIMA_ALEATORIA - CAPACIDAD_MINIMA_ALEATORIA + 1);
+    public ModeloAvion getModelo() {
+        return modelo;
     }
 
-    public int getId() {
-        return id;
+    public EstadoAvion getEstado() {
+        return estado;
     }
 
     public int getCantidadMaxima() {
-        return cantidadMaxima;
+        return modelo.getCapacidad();
     }
 
     public int getPasajerosActuales() {
@@ -75,26 +83,21 @@ public class Avion {
     }
 
     public int getAsientosDisponibles() {
-        return cantidadMaxima - pasajerosActuales;
+        return getCantidadMaxima() - pasajerosActuales;
     }
 
     /** Porcentaje de ocupación del avión, entre 0 y 100. */
     public double getPorcentajeOcupacion() {
-        return pasajerosActuales * 100.0 / cantidadMaxima;
-    }
-
-    /** @return true si el vuelo está activo; false si está cancelado. */
-    public boolean getEstado() {
-        return estado;
+        return pasajerosActuales * 100.0 / getCantidadMaxima();
     }
 
     /**
-     * Sube pasajeros al avión. Solo se permite si el vuelo está activo
-     * y hay asientos suficientes. Si la operación falla, el avión no cambia.
+     * Sube pasajeros. Solo se permite durante el embarque y hasta completar la capacidad.
+     * Si la operación falla, el avión no cambia.
      */
     public OperationResult subirPasajeros(int cantidad) {
-        if (!estado) {
-            return OperationResult.FLIGHT_CANCELLED;
+        if (!estado.permiteSubirPasajeros()) {
+            return OperationResult.OPERATION_NOT_ALLOWED;
         }
         if (cantidad <= 0) {
             return OperationResult.INVALID_AMOUNT;
@@ -107,10 +110,13 @@ public class Avion {
     }
 
     /**
-     * Baja pasajeros del avión. Se permite aunque el vuelo esté cancelado
-     * (los pasajeros siempre deben poder desembarcar). Si la operación falla, el avión no cambia.
+     * Baja pasajeros. Se permite durante el embarque (si alguien desiste) y al desembarcar.
+     * Si la operación falla, el avión no cambia.
      */
     public OperationResult bajarPasajeros(int cantidad) {
+        if (!estado.permiteBajarPasajeros()) {
+            return OperationResult.OPERATION_NOT_ALLOWED;
+        }
         if (cantidad <= 0) {
             return OperationResult.INVALID_AMOUNT;
         }
@@ -119,5 +125,26 @@ public class Avion {
         }
         pasajerosActuales -= cantidad;
         return OperationResult.SUCCESS;
+    }
+
+    /**
+     * Cambia el estado del avión respetando la máquina de estados.
+     * Si el nuevo estado exige el avión vacío y aún hay pasajeros, se rechaza.
+     */
+    public OperationResult cambiarEstado(EstadoAvion nuevoEstado) {
+        if (!estado.puedeCambiarA(nuevoEstado)) {
+            return OperationResult.INVALID_TRANSITION;
+        }
+        if (nuevoEstado.requiereAvionVacio() && pasajerosActuales > 0) {
+            return OperationResult.AIRPLANE_NOT_EMPTY;
+        }
+        estado = nuevoEstado;
+        return OperationResult.SUCCESS;
+    }
+
+    /** Ejemplo: "CC-AMA · Airbus A320". */
+    @Override
+    public String toString() {
+        return matricula + " · " + modelo;
     }
 }

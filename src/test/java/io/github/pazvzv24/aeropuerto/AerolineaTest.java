@@ -5,92 +5,122 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class AeropuertoTest {
+class AerolineaTest {
 
-    private Aeropuerto crearAeropuerto() {
-        return new Aeropuerto("Prueba",
-                new Avion(1, 100, 40, true),
-                new Avion(2, 80, 80, true),
-                new Avion(3, 60, 10, false));
+    private Aerolinea crearAerolinea() {
+        return new Aerolinea("Prueba",
+                new Avion("CC-AAA", ModeloAvion.A320, EstadoAvion.EMBARCANDO, 100),
+                new Avion("CC-AAB", ModeloAvion.A321, EstadoAvion.EN_VUELO, 200),
+                new Avion("CC-AAC", ModeloAvion.A319, EstadoAvion.EN_MANTENIMIENTO, 0));
     }
 
     @Test
-    @DisplayName("Al iniciar se crean 5 aviones con IDs del 1 al 5")
-    void constructor_CreaCincoAvionesConIdsCorrelativos() {
-        Aeropuerto aeropuerto = new Aeropuerto("Aeropuerto Internacional", new Random(7));
+    @DisplayName("Altamar Airlines parte con 15 aviones activos, todos válidos y sin matrículas repetidas")
+    void altamarAirlines_TieneQuinceAviones() {
+        Aerolinea altamar = Aerolinea.altamarAirlines();
 
-        List<Avion> aviones = aeropuerto.getAviones();
-
-        assertEquals(Aeropuerto.AVIONES_INICIALES, aviones.size());
-        for (int id = 1; id <= Aeropuerto.AVIONES_INICIALES; id++) {
-            assertNotNull(aeropuerto.buscarAvion(id));
+        assertEquals("Altamar Airlines", altamar.getNombre());
+        assertEquals(15, altamar.getCantidadAvionesActivos());
+        assertEquals(Aerolinea.CAPACIDAD_FLOTA - 15, altamar.getEspacioDisponible());
+        Set<String> matriculas = new HashSet<>();
+        for (Avion avion : altamar.getFlota()) {
+            matriculas.add(avion.getMatricula());
         }
+        assertEquals(15, matriculas.size());
     }
 
     @Test
-    @DisplayName("Los totales suman todos los aviones, activos y cancelados")
-    void totales_SumanTodosLosAviones() {
-        Aeropuerto aeropuerto = crearAeropuerto();
+    @DisplayName("Los totales y conteos consideran toda la flota")
+    void totales_YConteos() {
+        Aerolinea aerolinea = crearAerolinea();
 
-        assertEquals(40 + 80 + 10, aeropuerto.calcularTotalPasajeros());
-        assertEquals(60 + 0 + 50, aeropuerto.calcularTotalDisponibles());
+        assertEquals(300, aerolinea.calcularTotalPasajeros());
+        assertEquals(74, aerolinea.calcularAsientosEnEmbarque());
+        assertEquals(1, aerolinea.contarPorEstado(EstadoAvion.EN_VUELO));
+        assertEquals(0, aerolinea.contarPorEstado(EstadoAvion.DISPONIBLE));
     }
 
     @Test
-    @DisplayName("Buscar un ID inexistente devuelve null")
-    void buscarAvion_IdInexistente_DevuelveNull() {
-        assertNull(crearAeropuerto().buscarAvion(99));
+    @DisplayName("Se busca por matrícula sin importar mayúsculas; si no existe devuelve null")
+    void buscarAvion_PorMatricula() {
+        Aerolinea aerolinea = crearAerolinea();
+
+        assertNotNull(aerolinea.buscarAvion("cc-aab"));
+        assertNull(aerolinea.buscarAvion("CC-ZZZ"));
     }
 
     @Test
     @DisplayName("Operar sobre un avión inexistente informa AIRPLANE_NOT_FOUND")
-    void operaciones_AvionInexistente_InformanNoEncontrado() {
-        Aeropuerto aeropuerto = crearAeropuerto();
+    void operaciones_AvionInexistente() {
+        Aerolinea aerolinea = crearAerolinea();
 
-        assertEquals(OperationResult.AIRPLANE_NOT_FOUND, aeropuerto.subirPasajeros(99, 5));
-        assertEquals(OperationResult.AIRPLANE_NOT_FOUND, aeropuerto.bajarPasajeros(99, 5));
+        assertEquals(OperationResult.AIRPLANE_NOT_FOUND, aerolinea.subirPasajeros("CC-ZZZ", 5));
+        assertEquals(OperationResult.AIRPLANE_NOT_FOUND, aerolinea.bajarPasajeros("CC-ZZZ", 5));
+        assertEquals(OperationResult.AIRPLANE_NOT_FOUND, aerolinea.cambiarEstado("CC-ZZZ", EstadoAvion.DISPONIBLE));
     }
 
     @Test
-    @DisplayName("Subir pasajeros desde el aeropuerto actualiza el total")
-    void subirPasajeros_ActualizaElTotal() {
-        Aeropuerto aeropuerto = crearAeropuerto();
+    @DisplayName("Incorporar un avión valida la matrícula y que no esté repetida")
+    void incorporarAvion_ValidaMatricula() {
+        Aerolinea aerolinea = crearAerolinea();
 
-        assertEquals(OperationResult.SUCCESS, aeropuerto.subirPasajeros(1, 20));
-        assertEquals(150, aeropuerto.calcularTotalPasajeros());
+        assertEquals(OperationResult.SUCCESS, aerolinea.incorporarAvion("cc-aad", ModeloAvion.A320NEO));
+        assertEquals(EstadoAvion.DISPONIBLE, aerolinea.buscarAvion("CC-AAD").getEstado());
+        assertEquals(OperationResult.DUPLICATE_REGISTRATION, aerolinea.incorporarAvion("CC-AAA", ModeloAvion.A320));
+        assertEquals(OperationResult.INVALID_REGISTRATION, aerolinea.incorporarAvion("AB-123", ModeloAvion.A320));
+        assertEquals(4, aerolinea.getCantidadAvionesActivos());
     }
 
     @Test
-    @DisplayName("La lista de aviones es de solo lectura (encapsulamiento)")
-    void getAviones_EsDeSoloLectura() {
-        List<Avion> aviones = crearAeropuerto().getAviones();
-
-        assertThrows(UnsupportedOperationException.class, () -> aviones.clear());
-    }
-
-    @Test
-    @DisplayName("Se rechazan IDs repetidos, aviones nulos y nombres vacíos")
-    void constructor_ConDatosInvalidos_LanzaExcepcion() {
-        assertThrows(IllegalArgumentException.class,
-                () -> new Aeropuerto("Prueba", new Avion(1, 10, 0, true), new Avion(1, 20, 0, true)));
-        assertThrows(IllegalArgumentException.class,
-                () -> new Aeropuerto("Prueba", new Avion(1, 10, 0, true), null));
-        assertThrows(IllegalArgumentException.class, () -> new Aeropuerto("  "));
-    }
-
-    @Test
-    @DisplayName("No se pueden registrar más de 100 aviones")
-    void constructor_MasDeCienAviones_LanzaExcepcion() {
-        Avion[] aviones = new Avion[Aeropuerto.CAPACIDAD_AVIONES + 1];
-        for (int i = 0; i < aviones.length; i++) {
-            aviones[i] = new Avion(i + 1, 10, 0, true);
+    @DisplayName("La flota activa no supera los 100 aviones")
+    void incorporarAvion_ConFlotaLlena_EsRechazado() {
+        Aerolinea aerolinea = new Aerolinea("Prueba");
+        for (int i = 0; i < Aerolinea.CAPACIDAD_FLOTA; i++) {
+            assertEquals(OperationResult.SUCCESS, aerolinea.incorporarAvion(matricula(i), ModeloAvion.A320));
         }
 
-        assertThrows(IllegalArgumentException.class, () -> new Aeropuerto("Prueba", aviones));
+        assertEquals(OperationResult.FLEET_FULL, aerolinea.incorporarAvion("CC-ZZZ", ModeloAvion.A320));
+        assertEquals(Aerolinea.CAPACIDAD_FLOTA, aerolinea.getCantidadAvionesActivos());
+    }
+
+    @Test
+    @DisplayName("Un avión dado de baja se conserva en el registro, pero libera espacio en la flota")
+    void darDeBaja_LiberaEspacio() {
+        Aerolinea aerolinea = crearAerolinea();
+
+        assertEquals(OperationResult.SUCCESS, aerolinea.cambiarEstado("CC-AAC", EstadoAvion.FUERA_DE_SERVICIO));
+        assertEquals(2, aerolinea.getCantidadAvionesActivos());
+        assertEquals(3, aerolinea.getFlota().size());
+    }
+
+    @Test
+    @DisplayName("La lista de la flota es de solo lectura (encapsulamiento)")
+    void getFlota_EsDeSoloLectura() {
+        List<Avion> flota = crearAerolinea().getFlota();
+
+        assertThrows(UnsupportedOperationException.class, () -> flota.clear());
+    }
+
+    @Test
+    @DisplayName("Se rechazan matrículas repetidas, aviones nulos y nombres vacíos")
+    void constructor_ConDatosInvalidos_LanzaExcepcion() {
+        assertThrows(IllegalArgumentException.class, () -> new Aerolinea("Prueba",
+                new Avion("CC-AAA", ModeloAvion.A320), new Avion("CC-AAA", ModeloAvion.A321)));
+        assertThrows(IllegalArgumentException.class,
+                () -> new Aerolinea("Prueba", new Avion("CC-AAA", ModeloAvion.A320), null));
+        assertThrows(IllegalArgumentException.class, () -> new Aerolinea("  "));
+    }
+
+    /** Genera matrículas distintas CC-AAA, CC-AAB, ... para llenar la flota. */
+    private static String matricula(int i) {
+        char segunda = (char) ('A' + i / 26);
+        char tercera = (char) ('A' + i % 26);
+        return "CC-A" + segunda + tercera;
     }
 }

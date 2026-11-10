@@ -17,9 +17,10 @@ public final class PasajerosTableModel extends AbstractTableModel {
 
     public static final int COLUMNA_NOMBRE = 0;
     public static final int COLUMNA_DOCUMENTO = 1;
-    public static final int COLUMNA_ESTADO = 2;
+    public static final int COLUMNA_ASIENTO = 2;
+    public static final int COLUMNA_ESTADO = 3;
 
-    private static final String[] COLUMNAS = {"Pasajero", "Documento", "Estado"};
+    private static final String[] COLUMNAS = {"Pasajero", "Documento", "Asiento", "Estado"};
 
     private transient Vuelo vuelo;
     private transient List<CheckIn> registros = List.of();
@@ -74,6 +75,8 @@ public final class PasajerosTableModel extends AbstractTableModel {
                 return pasajero.getNombre();
             case COLUMNA_DOCUMENTO:
                 return pasajero.getTipoDocumento() + " " + pasajero.getDocumentoEnmascarado();
+            case COLUMNA_ASIENTO:
+                return registro.getAsiento();
             case COLUMNA_ESTADO:
                 return registro.getEstado();
             default:

@@ -9,6 +9,9 @@ import java.util.Locale;
  */
 public class Pasajero {
 
+    /** Largo máximo del nombre (el mismo límite de la base de datos). */
+    public static final int LARGO_MAXIMO_NOMBRE = 100;
+
     private final String nombre;
     private final TipoDocumento tipoDocumento;
     private final String documento;
@@ -17,8 +20,9 @@ public class Pasajero {
      * @throws IllegalArgumentException si el nombre está vacío o el documento no es válido
      */
     public Pasajero(String nombre, TipoDocumento tipoDocumento, String documento) {
-        if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException("El nombre del pasajero es obligatorio.");
+        if (!esNombreValido(nombre)) {
+            throw new IllegalArgumentException("El nombre del pasajero es obligatorio y admite hasta "
+                    + LARGO_MAXIMO_NOMBRE + " caracteres.");
         }
         if (tipoDocumento == null) {
             throw new IllegalArgumentException("El tipo de documento es obligatorio.");
@@ -28,12 +32,21 @@ public class Pasajero {
                     ? "RUT inválido: revise el dígito verificador."
                     : "Pasaporte inválido: use de 6 a 9 letras o números.");
         }
-        this.nombre = nombre.trim().replaceAll("\\s+", " ");
+        this.nombre = normalizarNombre(nombre);
         this.tipoDocumento = tipoDocumento;
         this.documento = normalizarDocumento(tipoDocumento, documento);
     }
 
-    /** RUT: módulo 11. Pasaporte: de 6 a 9 letras o números. */
+    /** El nombre no puede estar vacío ni superar el largo máximo (sin contar espacios repetidos). */
+    public static boolean esNombreValido(String nombre) {
+        return nombre != null && !nombre.isBlank() && normalizarNombre(nombre).length() <= LARGO_MAXIMO_NOMBRE;
+    }
+
+    private static String normalizarNombre(String nombre) {
+        return nombre.trim().replaceAll("\\s+", " ");
+    }
+
+        /** RUT: módulo 11. Pasaporte: de 6 a 9 letras o números. */
     public static boolean esDocumentoValido(TipoDocumento tipo, String documento) {
         if (tipo == null || documento == null) {
             return false;

@@ -7,6 +7,7 @@ import io.github.pazvzv24.aeropuerto.Destino;
 import io.github.pazvzv24.aeropuerto.EstadoPasajero;
 import io.github.pazvzv24.aeropuerto.EstadoVuelo;
 import io.github.pazvzv24.aeropuerto.OperationResult;
+import io.github.pazvzv24.aeropuerto.PaseAbordar;
 import io.github.pazvzv24.aeropuerto.Pasajero;
 import io.github.pazvzv24.aeropuerto.TipoDocumento;
 import io.github.pazvzv24.aeropuerto.Vuelo;
@@ -87,6 +88,11 @@ public final class PanelVuelos extends JPanel {
     private final JButton btnCheckIn = new JButton("Hacer check-in");
     private final JButton btnEmbarcar = new JButton("Embarcar");
     private final JButton btnAnular = new JButton("Anular check-in");
+    private final JButton btnAsientoCheckIn = new JButton();
+    private final JButton btnCambiarAsiento = new JButton("Cambiar asiento");
+    private final JButton btnPase = new JButton("Pase de abordar");
+    /** Asiento elegido para el próximo check-in; null = el primero libre. */
+    private String asientoElegido;
     private final JLabel lblResultado = new JLabel(" ");
 
     /**
@@ -172,6 +178,9 @@ public final class PanelVuelos extends JPanel {
         prepararTabla(tablaPasajeros);
         tablaPasajeros.getColumnModel().getColumn(PasajerosTableModel.COLUMNA_NOMBRE).setPreferredWidth(220);
         tablaPasajeros.getColumnModel().getColumn(PasajerosTableModel.COLUMNA_ESTADO).setCellRenderer(new RenderEstado());
+        DefaultTableCellRenderer asientoCentrado = new DefaultTableCellRenderer();
+        asientoCentrado.setHorizontalAlignment(SwingConstants.CENTER);
+        tablaPasajeros.getColumnModel().getColumn(PasajerosTableModel.COLUMNA_ASIENTO).setCellRenderer(asientoCentrado);
         tablaPasajeros.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 actualizarBotonesPasajero();
@@ -203,6 +212,10 @@ public final class PanelVuelos extends JPanel {
         txtDocumento.addActionListener(e -> hacerCheckIn());
         btnEmbarcar.addActionListener(e -> operarPasajero(true));
         btnAnular.addActionListener(e -> operarPasajero(false));
+        btnAsientoCheckIn.addActionListener(e -> elegirAsientoCheckIn());
+        btnCambiarAsiento.addActionListener(e -> cambiarAsiento());
+        btnPase.addActionListener(e -> mostrarPase());
+        actualizarBotonAsiento();
 
         JPanel panel = new JPanel(new GridBagLayout());
         panel.putClientProperty("FlatLaf.style", ESTILO_TARJETA);
@@ -228,13 +241,19 @@ public final class PanelVuelos extends JPanel {
         documento.add(cmbTipo, BorderLayout.WEST);
         documento.add(txtDocumento, BorderLayout.CENTER);
         agregar(panel, g, documento, 6);
-        agregar(panel, g, btnCheckIn, 12);
+        JPanel botonesCheckIn = new JPanel(new GridLayout(1, 2, 8, 0));
+        botonesCheckIn.setOpaque(false);
+        botonesCheckIn.add(btnAsientoCheckIn);
+        botonesCheckIn.add(btnCheckIn);
+        agregar(panel, g, botonesCheckIn, 12);
 
         agregar(panel, g, etiquetaSecundaria("Pasajero seleccionado"), 4);
-        JPanel botonesPasajero = new JPanel(new GridLayout(1, 2, 8, 0));
+        JPanel botonesPasajero = new JPanel(new GridLayout(2, 2, 8, 6));
         botonesPasajero.setOpaque(false);
         botonesPasajero.add(btnEmbarcar);
         botonesPasajero.add(btnAnular);
+        botonesPasajero.add(btnCambiarAsiento);
+        botonesPasajero.add(btnPase);
         agregar(panel, g, botonesPasajero, 12);
 
         g.weighty = 1;
@@ -309,6 +328,10 @@ public final class PanelVuelos extends JPanel {
     /** Muestra los datos del vuelo seleccionado, su lista de pasajeros y solo las acciones permitidas. */
     private void actualizarSeleccion() {
         Vuelo vuelo = vueloSeleccionado();
+        if (vuelo != modeloPasajeros.getVuelo()) {
+            asientoElegido = null;
+            actualizarBotonAsiento();
+        }
         modeloPasajeros.setVuelo(vuelo);
         panelAcciones.removeAll();
         if (vuelo == null) {
@@ -317,6 +340,7 @@ public final class PanelVuelos extends JPanel {
             lblDetalleVuelo.setText(html("Seleccione un vuelo de la tabla."));
             lblManifiesto.setText("Pasajeros");
             btnCheckIn.setEnabled(false);
+            btnAsientoCheckIn.setEnabled(false);
         } else {
             EstadoVuelo estado = vuelo.getEstado();
             lblVuelo.setText(vuelo.toString());
@@ -332,6 +356,7 @@ public final class PanelVuelos extends JPanel {
                     + vuelo.getCantidadPasajeros() + " con check-in, "
                     + vuelo.contarPasajeros(EstadoPasajero.EMBARCADO) + " embarcados");
             btnCheckIn.setEnabled(estado.permiteCheckIn());
+            btnAsientoCheckIn.setEnabled(estado.permiteCheckIn());
             btnCheckIn.setToolTipText(estado.permiteCheckIn() ? null : "El check-in cierra al despegar");
 
             for (EstadoVuelo destino : estado.getSiguientes()) {
@@ -359,6 +384,57 @@ public final class PanelVuelos extends JPanel {
         btnAnular.setEnabled(conCheckIn && vuelo.getEstado().permiteCheckIn());
         btnEmbarcar.setToolTipText(btnEmbarcar.isEnabled() ? null
                 : "Seleccione un pasajero con check-in de un vuelo que esté embarcando");
+        btnCambiarAsiento.setEnabled(conCheckIn && vuelo.getEstado().permiteCheckIn());
+        btnPase.setEnabled(vuelo != null && registro != null
+                && vuelo.validarPaseAbordar(registro.getPasajero().getTipoDocumento(),
+                        registro.getPasajero().getDocumento()).isSuccess());
+    }
+
+    private void actualizarBotonAsiento() {
+        btnAsientoCheckIn.setText(asientoElegido == null ? "Asiento: automático" : "Asiento: " + asientoElegido);
+        btnAsientoCheckIn.setToolTipText("Elegir el asiento en el mapa del avión");
+    }
+
+    private void elegirAsientoCheckIn() {
+        Vuelo vuelo = vueloSeleccionado();
+        if (vuelo == null) {
+            return;
+        }
+        MapaAsientos.elegir(this, vuelo, asientoElegido).ifPresent(asiento -> {
+            asientoElegido = asiento;
+            actualizarBotonAsiento();
+        });
+    }
+
+    private void cambiarAsiento() {
+        Vuelo vuelo = vueloSeleccionado();
+        CheckIn registro = pasajeroSeleccionado();
+        if (vuelo == null || registro == null) {
+            return;
+        }
+        Pasajero pasajero = registro.getPasajero();
+        MapaAsientos.elegir(this, vuelo, registro.getAsiento())
+                .filter(asiento -> !asiento.equals(registro.getAsiento()))
+                .ifPresent(asiento -> terminarOperacion(vuelo.getCodigo(),
+                        aerolinea.cambiarAsiento(vuelo.getCodigo(), pasajero.getTipoDocumento(),
+                                pasajero.getDocumento(), asiento),
+                        "Cambiar asiento · " + pasajero.getNombre() + " → " + asiento));
+    }
+
+    private void mostrarPase() {
+        Vuelo vuelo = vueloSeleccionado();
+        CheckIn registro = pasajeroSeleccionado();
+        if (vuelo == null || registro == null) {
+            return;
+        }
+        Pasajero pasajero = registro.getPasajero();
+        PaseAbordar pase = aerolinea.emitirPaseAbordar(vuelo.getCodigo(), pasajero.getTipoDocumento(),
+                pasajero.getDocumento());
+        if (pase == null) {
+            terminarOperacion(vuelo.getCodigo(), OperationResult.BOARDING_PASS_UNAVAILABLE, "Pase de abordar");
+            return;
+        }
+        DialogoPaseAbordar.mostrar(this, pase);
     }
 
     private void cambiarEstado(EstadoVuelo destino) {
@@ -385,10 +461,13 @@ public final class PanelVuelos extends JPanel {
         }
         String nombre = txtNombre.getText().trim();
         TipoDocumento tipo = (TipoDocumento) cmbTipo.getSelectedItem();
-        OperationResult resultado = aerolinea.hacerCheckIn(vuelo.getCodigo(), nombre, tipo, txtDocumento.getText());
+        OperationResult resultado = aerolinea.hacerCheckIn(vuelo.getCodigo(), nombre, tipo, txtDocumento.getText(),
+                asientoElegido);
         if (resultado.isSuccess()) {
             txtNombre.setText("");
             txtDocumento.setText("");
+            asientoElegido = null;
+            actualizarBotonAsiento();
         }
         String accion = "Check-in · " + vuelo.getCodigo() + (nombre.isEmpty() ? "" : " · " + nombre);
         terminarOperacion(vuelo.getCodigo(), resultado, accion);

@@ -25,6 +25,7 @@ public final class Aerolinea {
     private final String nombre;
     private final List<Avion> registro = new ArrayList<>();
     private final List<Vuelo> vuelos = new ArrayList<>();
+    private Runnable alCambiar = () -> { };
 
     /** Crea una aerolínea sin aviones. */
     public Aerolinea(String nombre) {
@@ -117,6 +118,46 @@ public final class Aerolinea {
         registro.add(avion);
     }
 
+    /**
+     * Reconstruye una aerolínea con datos guardados (por ejemplo, desde PostgreSQL).
+     * Revisa que los datos sean coherentes: si alguien modificó la base de datos a mano
+     * y dejó algo imposible, se rechaza en vez de cargar un estado inválido.
+     *
+     * @throws IllegalArgumentException si los datos no son coherentes
+     */
+    public static Aerolinea desdeDatos(String nombre, List<Avion> aviones, List<Vuelo> vuelosGuardados) {
+        Aerolinea aerolinea = new Aerolinea(nombre, aviones.toArray(new Avion[0]));
+        for (Vuelo vuelo : vuelosGuardados) {
+            if (vuelo == null || aerolinea.buscarVuelo(vuelo.getCodigo()) != null) {
+                throw new IllegalArgumentException("Vuelo nulo o con código repetido.");
+            }
+            if (aerolinea.buscarAvion(vuelo.getAvion().getMatricula()) != vuelo.getAvion()) {
+                throw new IllegalArgumentException("El vuelo " + vuelo.getCodigo() + " usa un avión que no es de la flota.");
+            }
+            if (!vuelo.getEstado().esFinal() && aerolinea.buscarVueloPendiente(vuelo.getAvion()) != null) {
+                throw new IllegalArgumentException("El avión " + vuelo.getAvion().getMatricula()
+                        + " tiene más de un vuelo pendiente.");
+            }
+            aerolinea.vuelos.add(vuelo);
+        }
+        return aerolinea;
+    }
+
+    /**
+     * Acción que se ejecuta después de cada operación exitosa que cambia datos
+     * (por ejemplo, guardar en la base de datos). Las operaciones fallidas no la ejecutan.
+     */
+    public void setAlCambiar(Runnable accion) {
+        this.alCambiar = accion == null ? () -> { } : accion;
+    }
+
+    private OperationResult notificar(OperationResult resultado) {
+        if (resultado.isSuccess()) {
+            alCambiar.run();
+        }
+        return resultado;
+    }
+
     public String getNombre() {
         return nombre;
     }
@@ -185,6 +226,10 @@ public final class Aerolinea {
 
     /** Incorpora un avión nuevo a la flota, disponible y sin pasajeros. */
     public OperationResult incorporarAvion(String matricula, ModeloAvion modelo) {
+        return notificar(incorporarAvionSinGuardar(matricula, modelo));
+    }
+
+    private OperationResult incorporarAvionSinGuardar(String matricula, ModeloAvion modelo) {
         if (!Avion.esMatriculaValida(matricula) || modelo == null) {
             return OperationResult.INVALID_REGISTRATION;
         }
@@ -203,6 +248,10 @@ public final class Aerolinea {
      * Si no existe devuelve AIRPLANE_NOT_FOUND; si lo maneja un vuelo, AIRPLANE_ASSIGNED_TO_FLIGHT.
      */
     public OperationResult subirPasajeros(String matricula, int cantidad) {
+        return notificar(subirPasajerosSinGuardar(matricula, cantidad));
+    }
+
+    private OperationResult subirPasajerosSinGuardar(String matricula, int cantidad) {
         Avion avion = buscarAvion(matricula);
         if (avion == null) {
             return OperationResult.AIRPLANE_NOT_FOUND;
@@ -212,6 +261,10 @@ public final class Aerolinea {
 
     /** Baja pasajeros del avión indicado, con las mismas reglas que {@link #subirPasajeros}. */
     public OperationResult bajarPasajeros(String matricula, int cantidad) {
+        return notificar(bajarPasajerosSinGuardar(matricula, cantidad));
+    }
+
+    private OperationResult bajarPasajerosSinGuardar(String matricula, int cantidad) {
         Avion avion = buscarAvion(matricula);
         if (avion == null) {
             return OperationResult.AIRPLANE_NOT_FOUND;
@@ -225,6 +278,10 @@ public final class Aerolinea {
      * (así los pasajeros quedan en su manifiesto).
      */
     public OperationResult cambiarEstado(String matricula, EstadoAvion nuevoEstado) {
+        return notificar(cambiarEstadoSinGuardar(matricula, nuevoEstado));
+    }
+
+    private OperationResult cambiarEstadoSinGuardar(String matricula, EstadoAvion nuevoEstado) {
         Avion avion = buscarAvion(matricula);
         if (avion == null) {
             return OperationResult.AIRPLANE_NOT_FOUND;
@@ -286,6 +343,11 @@ public final class Aerolinea {
      */
     public OperationResult programarVuelo(String codigo, Destino origen, Destino destino,
                                           LocalDateTime salida, String matricula) {
+        return notificar(programarVueloSinGuardar(codigo, origen, destino, salida, matricula));
+    }
+
+    private OperationResult programarVueloSinGuardar(String codigo, Destino origen, Destino destino,
+                                                     LocalDateTime salida, String matricula) {
         if (!Vuelo.esCodigoValido(codigo) || origen == null || destino == null
                 || origen == destino || salida == null) {
             return OperationResult.INVALID_FLIGHT_DATA;
@@ -309,27 +371,43 @@ public final class Aerolinea {
 
     /** Registra un pasajero en el vuelo; valida el nombre y el documento (RUT con módulo 11). */
     public OperationResult hacerCheckIn(String codigoVuelo, String nombre, TipoDocumento tipo, String documento) {
+        return notificar(hacerCheckInSinGuardar(codigoVuelo, nombre, tipo, documento));
+    }
+
+    private OperationResult hacerCheckInSinGuardar(String codigoVuelo, String nombre, TipoDocumento tipo, String documento) {
         Vuelo vuelo = buscarVuelo(codigoVuelo);
         if (vuelo == null) {
             return OperationResult.FLIGHT_NOT_FOUND;
         }
-        if (nombre == null || nombre.isBlank() || !Pasajero.esDocumentoValido(tipo, documento)) {
+        if (!Pasajero.esNombreValido(nombre) || !Pasajero.esDocumentoValido(tipo, documento)) {
             return OperationResult.INVALID_PASSENGER_DATA;
         }
         return vuelo.hacerCheckIn(new Pasajero(nombre, tipo, documento));
     }
 
     public OperationResult anularCheckIn(String codigoVuelo, TipoDocumento tipo, String documento) {
+        return notificar(anularCheckInSinGuardar(codigoVuelo, tipo, documento));
+    }
+
+    private OperationResult anularCheckInSinGuardar(String codigoVuelo, TipoDocumento tipo, String documento) {
         Vuelo vuelo = buscarVuelo(codigoVuelo);
         return vuelo == null ? OperationResult.FLIGHT_NOT_FOUND : vuelo.anularCheckIn(tipo, documento);
     }
 
     public OperationResult embarcarPasajero(String codigoVuelo, TipoDocumento tipo, String documento) {
+        return notificar(embarcarPasajeroSinGuardar(codigoVuelo, tipo, documento));
+    }
+
+    private OperationResult embarcarPasajeroSinGuardar(String codigoVuelo, TipoDocumento tipo, String documento) {
         Vuelo vuelo = buscarVuelo(codigoVuelo);
         return vuelo == null ? OperationResult.FLIGHT_NOT_FOUND : vuelo.embarcarPasajero(tipo, documento);
     }
 
     public OperationResult cambiarEstadoVuelo(String codigoVuelo, EstadoVuelo nuevoEstado) {
+        return notificar(cambiarEstadoVueloSinGuardar(codigoVuelo, nuevoEstado));
+    }
+
+    private OperationResult cambiarEstadoVueloSinGuardar(String codigoVuelo, EstadoVuelo nuevoEstado) {
         Vuelo vuelo = buscarVuelo(codigoVuelo);
         return vuelo == null ? OperationResult.FLIGHT_NOT_FOUND : vuelo.cambiarEstado(nuevoEstado);
     }

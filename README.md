@@ -3,9 +3,11 @@
 [![CI](https://github.com/Pazvzv24/gestion_aeropuerto/actions/workflows/ci.yml/badge.svg)](https://github.com/Pazvzv24/gestion_aeropuerto/actions/workflows/ci.yml)
 ![Java 17](https://img.shields.io/badge/Java-17-E76F00?logo=openjdk&logoColor=white)
 ![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-blue)
 
-Sistema de gestión de flota y vuelos para **Altamar Airlines**, una aerolínea ficticia, escrito en **Java 17**. Administra los aviones con matrícula chilena y su estado operativo con reglas de una **máquina de estados**; programa **vuelos** y gestiona sus **pasajeros**: check-in con **RUT validado (módulo 11)** o pasaporte, embarque y lista de pasajeros con el **documento enmascarado**. Tiene **interfaz gráfica moderna** (Swing + FlatLaf, temas claro y oscuro) y modo consola.
+Sistema de gestión de flota y vuelos para **Altamar Airlines**, una aerolínea ficticia, escrito en **Java 17**. Administra los aviones con matrícula chilena y su estado operativo con reglas de una **máquina de estados**; programa **vuelos** y gestiona sus **pasajeros**: check-in con **RUT validado (módulo 11)** o pasaporte, embarque y lista de pasajeros con el **documento enmascarado**. Tiene **interfaz gráfica moderna** (Swing + FlatLaf, temas claro y oscuro), modo consola y guarda los datos en **PostgreSQL con Docker**, con seguridad desde el diseño.
 
 Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacional**, continuado como proyecto de portafolio. Ver [Contexto](#contexto).
 
@@ -15,6 +17,7 @@ Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacion
 
 - [Funcionalidades](#funcionalidades)
 - [Ejecución](#ejecución)
+- [Base de datos](#base-de-datos)
 - [Pruebas](#pruebas)
 - [Estructura del proyecto](#estructura-del-proyecto)
 - [Diseño](#diseño)
@@ -64,36 +67,103 @@ Seleccione una opción:
 
 La opción 8 abre un submenú para listar vuelos, ver sus pasajeros, programar vuelos, hacer check-in, embarcar, anular check-in y cambiar el estado de un vuelo.
 
+**Datos guardados:** con PostgreSQL configurado, cada operación exitosa se guarda al instante y los datos siguen ahí al volver a abrir la aplicación. Sin configuración, la aplicación funciona igual en memoria. La barra inferior de la ventana indica cuál de los dos modos está en uso.
+
 ---
 
 ## Ejecución
 
-**Requisitos:** JDK 17 o superior y [Maven](https://maven.apache.org/) 3.9 o superior. Maven descarga solo las librerías (FlatLaf y JUnit).
+**Requisitos:** JDK 17 o superior y [Maven](https://maven.apache.org/) 3.9 o superior. Maven descarga solo las librerías (FlatLaf, el driver de PostgreSQL y JUnit). Para guardar los datos, además [Docker Desktop](https://www.docker.com/products/docker-desktop/) (ver [Base de datos](#base-de-datos)).
 
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/Pazvzv24/gestion_aeropuerto.git
 cd gestion_aeropuerto
 
-# 2. Compilar, ejecutar las pruebas y generar el .jar (incluye FlatLaf)
+# 2. Compilar, ejecutar las pruebas y generar el .jar (incluye FlatLaf y el driver de PostgreSQL)
 mvn verify
 
 # 3. Ejecutar la interfaz gráfica
-java -jar target/gestion-aeropuerto-2.3.0.jar
+java -jar target/gestion-aeropuerto-2.4.0.jar
 
 # O el menú por consola
-java -jar target/gestion-aeropuerto-2.3.0.jar --consola
+java -jar target/gestion-aeropuerto-2.4.0.jar --consola
 ```
 
 > Si la consola de Windows muestra mal las tildes, ejecuta antes `chcp 65001`.
 
-**Sin instalar Maven:** en Visual Studio Code con el *Extension Pack for Java*, el proyecto se reconoce solo a partir del `pom.xml` (descarga FlatLaf y JUnit automáticamente); `Main.java` se ejecuta con ▶ y las pruebas desde el panel *Testing*.
+**Sin instalar Maven:** en Visual Studio Code con el *Extension Pack for Java*, el proyecto se reconoce solo a partir del `pom.xml` (descarga las librerías automáticamente); `Main.java` se ejecuta con ▶ y las pruebas desde el panel *Testing*.
+
+---
+
+## Base de datos
+
+Los datos se guardan en **PostgreSQL 17**, que corre en un contenedor de **Docker**. La primera vez, Docker crea las tablas y el usuario de la aplicación con los scripts de [`db/init`](db/init).
+
+```bash
+# 1. Crear el archivo .env a partir del ejemplo y cambiar las dos contraseñas
+cp .env.example .env          # en PowerShell: Copy-Item .env.example .env
+
+# 2. Encender la base de datos (la primera vez descarga la imagen de PostgreSQL)
+docker compose up -d
+
+# 3. Ejecutar la aplicación: lee el archivo .env y se conecta sola
+java -jar target/gestion-aeropuerto-2.4.0.jar
+```
+
+Al iniciar con la base vacía, la aplicación guarda los datos de demostración. Para volver a empezar desde cero: `docker compose down -v` (borra los datos) y luego `docker compose up -d`.
+
+### Seguridad de la base de datos
+
+| Medida | Cómo se aplica |
+| :--- | :--- |
+| **Sin secretos en el código** | Las contraseñas están en el archivo `.env`, que está en `.gitignore`. En el repositorio solo está [`.env.example`](.env.example), sin contraseñas reales. |
+| **Contraseñas robustas** | La aplicación rechaza contraseñas de menos de 12 caracteres y la contraseña de ejemplo. |
+| **Mínimo privilegio** | La aplicación no usa el superusuario `postgres`: se conecta como `altamar_app`, que no puede crear ni borrar tablas, ni borrar aviones o vuelos, y solo puede cambiar las columnas de estado. Ver [`02_usuario_app.sql`](db/init/02_usuario_app.sql). |
+| **Sin inyección SQL** | Todas las consultas usan `PreparedStatement`: lo que escribe el usuario se envía como dato, nunca como parte del SQL. |
+| **Reglas también en la base** | Claves primarias y foráneas, `CHECK` (formato de matrícula y de código de vuelo, estados válidos, origen distinto del destino), `UNIQUE` (un documento por vuelo) y un índice que impide dos vuelos pendientes para el mismo avión. |
+| **Transacciones** | Cada guardado es una transacción: se guarda todo o nada. |
+| **Datos validados al cargar** | Lo que se lee de la base pasa por las mismas reglas del modelo; si alguien modificó la base y dejó algo imposible, la aplicación lo rechaza. |
+| **Base solo local** | El puerto se publica en `127.0.0.1:5433`: no es accesible desde otros equipos de la red. |
+| **Imagen fija** | `postgres:17.6-alpine` con versión exacta; Dependabot avisa cuando hay una nueva. |
+| **Errores sin datos sensibles** | Los mensajes al usuario nunca muestran contraseñas ni detalles internos. |
+
+```mermaid
+erDiagram
+    AVIONES ||--o{ VUELOS : "opera"
+    VUELOS ||--o{ PASAJEROS_VUELO : "lleva"
+    AVIONES {
+        varchar matricula PK "CC-XXX"
+        varchar modelo
+        varchar estado
+        int pasajeros_actuales
+    }
+    VUELOS {
+        varchar codigo PK "AM123"
+        char origen
+        char destino
+        timestamp salida
+        varchar matricula FK
+        varchar estado
+    }
+    PASAJEROS_VUELO {
+        bigint id PK
+        varchar codigo_vuelo FK
+        int orden
+        varchar nombre
+        varchar tipo_documento
+        varchar documento
+        varchar estado
+    }
+```
+
+> Esta configuración está pensada para desarrollo en un computador local. En un servidor real se agregaría, por ejemplo, conexión cifrada (TLS) y un gestor de secretos.
 
 ---
 
 ## Pruebas
 
-**67 pruebas unitarias** con JUnit 5, siguiendo el patrón *Arrange, Act, Assert*:
+**81 pruebas** con JUnit 5, siguiendo el patrón *Arrange, Act, Assert*:
 
 | Clase de prueba | Qué comprueba |
 | :--- | :--- |
@@ -105,6 +175,9 @@ java -jar target/gestion-aeropuerto-2.3.0.jar --consola
 | `EstadoVueloTest` | Transiciones permitidas del vuelo, estados finales y cierre del check-in al despegar |
 | `VueloTest` | Check-in sin duplicados ni sobrecupo, embarque que ocupa asientos, pasajeros que no se presentaron, aterrizaje y cancelación que liberan el avión |
 | `AerolineaVuelosTest` | Vuelos de demostración, programación con validaciones, un vuelo pendiente por avión, RUT inválido en el check-in y aviones bloqueados en la flota mientras su vuelo embarca o vuela |
+| `AerolineaPersistenciaTest` | Reconstruir la aerolínea desde datos guardados, rechazo de datos imposibles y que solo las operaciones exitosas se guarden |
+| `ConfiguracionBDTest` | Lectura del archivo `.env`, prioridad de las variables de entorno, rechazo de contraseñas débiles y que la contraseña nunca se muestre |
+| `RepositorioPostgresTest` | Con una base PostgreSQL real: guardar y cargar, un intento de inyección SQL que se guarda como texto y que el usuario de la aplicación no pueda borrar aviones ni tablas |
 | `MainTest` | Entrada inválida, fin de la entrada, una sesión de flota y otra de vuelos por consola, y el argumento `--consola` |
 | `AvionesTableModelTest`, `VuelosTableModelTest`, `PasajerosTableModelTest` | Que las tablas de la interfaz muestren los datos correctos (con el documento enmascarado) y se actualicen tras una operación |
 
@@ -112,7 +185,9 @@ java -jar target/gestion-aeropuerto-2.3.0.jar --consola
 mvn test
 ```
 
-En cada push, [GitHub Actions](.github/workflows/ci.yml) compila el proyecto y ejecuta todas las pruebas. [Dependabot](.github/dependabot.yml) avisa si alguna dependencia tiene vulnerabilidades conocidas, y CodeQL analiza la seguridad del código.
+Las 3 pruebas de `RepositorioPostgresTest` usan una base de datos real, así que solo se ejecutan en GitHub Actions; en el computador de desarrollo se omiten para no modificar los datos locales.
+
+En cada push, [GitHub Actions](.github/workflows/ci.yml) levanta una base PostgreSQL temporal con Docker Compose (con contraseñas aleatorias que se generan en cada ejecución), compila el proyecto y ejecuta todas las pruebas. [Dependabot](.github/dependabot.yml) avisa si alguna dependencia tiene vulnerabilidades conocidas, y CodeQL analiza la seguridad del código.
 
 ---
 
@@ -121,7 +196,12 @@ En cada push, [GitHub Actions](.github/workflows/ci.yml) compila el proyecto y e
 ```
 gestion_aeropuerto/
 ├── pom.xml                          # Configuración de Maven
+├── docker-compose.yml               # Base de datos PostgreSQL en Docker
+├── .env.example                     # Ejemplo de configuración (sin contraseñas reales)
 ├── LICENSE                          # Licencia MIT
+├── db/init/
+│   ├── 01_esquema.sql               # Tablas y restricciones
+│   └── 02_usuario_app.sql           # Usuario de la aplicación con mínimo privilegio
 ├── src/
 │   ├── main/java/io/github/pazvzv24/aeropuerto/
 │   │   ├── Aerolinea.java           # Flota (hasta 100 aviones activos), vuelos y sus operaciones
@@ -138,6 +218,11 @@ gestion_aeropuerto/
 │   │   ├── EstadoPasajero.java      # Check-in, embarcado o no se presentó
 │   │   ├── OperationResult.java     # Resultados posibles de una operación
 │   │   ├── Main.java                # Punto de entrada (ventana o consola)
+│   │   ├── persistencia/
+│   │   │   ├── RepositorioAerolinea.java    # Dónde se guardan los datos (interfaz)
+│   │   │   ├── RepositorioPostgres.java     # Implementación con PostgreSQL (JDBC)
+│   │   │   ├── RepositorioException.java    # Error al leer o guardar
+│   │   │   └── ConfiguracionBD.java         # Conexión leída del archivo .env
 │   │   └── ui/
 │   │       ├── VentanaPrincipal.java    # Ventana con pestañas Flota y Vuelos
 │   │       ├── PanelVuelos.java         # Pestaña de vuelos y pasajeros
@@ -154,7 +239,11 @@ gestion_aeropuerto/
 │       ├── EstadoVueloTest.java
 │       ├── PasajeroTest.java
 │       ├── RutTest.java
+│       ├── AerolineaPersistenciaTest.java
 │       ├── MainTest.java
+│       ├── persistencia/
+│       │   ├── ConfiguracionBDTest.java
+│       │   └── RepositorioPostgresTest.java
 │       └── ui/
 │           ├── AvionesTableModelTest.java
 │           ├── VuelosTableModelTest.java
@@ -339,6 +428,7 @@ Los pasajeros tienen datos personales, así que se aplican principios de la **Le
 - **Minimización:** solo se pide nombre y documento, lo necesario para el check-in.
 - **Validación:** el RUT se valida con el dígito verificador (módulo 11) antes de guardarlo.
 - **Enmascarado:** la interfaz y la consola muestran el documento ocultando parte de los dígitos (`12.345.***-5`, `******930`); el número completo solo se usa dentro del programa para comparar.
+- **Acceso restringido:** en la base de datos, los datos personales solo los puede leer el usuario de la aplicación, y cada columna tiene un comentario que indica que es un dato personal.
 - **Datos ficticios:** todos los pasajeros de demostración son inventados, con RUT de números repetidos (`11.111.111-1`) que no corresponden a personas.
 
 ---
@@ -367,7 +457,7 @@ Los pasajeros tienen datos personales, así que se aplican principios de la **Le
 
 Este proyecto nació como una evaluación del ramo **Fundamentos de Programación Computacional** (AIEP, primer semestre), en la unidad de introducción a Java. La **v1.0** corresponde a la versión entregada.
 
-Desde la **v1.1** continúa como proyecto de portafolio: corrección de errores, validación de la entrada del usuario y encapsulamiento (v1.1); estructura estándar con Maven, pruebas automáticas e integración continua (v2.0); interfaz gráfica (v2.1); una aerolínea con flota, matrículas, modelos y estados con reglas (v2.2), y vuelos con check-in y embarque de pasajeros (v2.3).
+Desde la **v1.1** continúa como proyecto de portafolio: corrección de errores, validación de la entrada del usuario y encapsulamiento (v1.1); estructura estándar con Maven, pruebas automáticas e integración continua (v2.0); interfaz gráfica (v2.1); una aerolínea con flota, matrículas, modelos y estados con reglas (v2.2), vuelos con check-in y embarque de pasajeros (v2.3), y datos guardados en PostgreSQL con Docker (v2.4).
 
 No se incluyen el enunciado ni la pauta de evaluación.
 
@@ -383,6 +473,7 @@ No se incluyen el enunciado ni la pauta de evaluación.
 | v2.1 | Interfaz gráfica con Swing y FlatLaf: tarjetas de resumen, tabla de aviones con ocupación y estado, panel de operaciones y temas claro y oscuro; el menú por consola sigue disponible con `--consola`; `.jar` único con todas las librerías; 5 pruebas nuevas (26 en total). |
 | v2.2 | Altamar Airlines: `Aeropuerto` pasa a ser `Aerolinea`, con flota de 15 aviones y capacidad para 100; matrícula chilena `CC-XXX`; modelos reales con su capacidad (`ModeloAvion`); estados operativos con máquina de estados (`EstadoAvion`); incorporar y dar de baja aviones; búsqueda por matrícula y filtro por estado en la interfaz; 6 resultados nuevos; 32 pruebas. |
 | v2.3 | Vuelos y pasajeros: clases `Vuelo`, `EstadoVuelo`, `Destino`, `CheckIn` y `EstadoPasajero`; `Pasajero` con RUT validado (módulo 11) o pasaporte y documento enmascarado (`Rut`, `TipoDocumento`); el vuelo controla el estado y los pasajeros de su avión; pestaña **Vuelos y pasajeros** en la interfaz y submenú en la consola; 5 vuelos de demostración con pasajeros ficticios; 10 resultados nuevos; 67 pruebas. |
+| v2.4 | Datos guardados en PostgreSQL 17 con Docker Compose: esquema con restricciones, usuario de la aplicación con mínimo privilegio, contraseñas en `.env`, `PreparedStatement`, transacciones y validación de los datos al cargar; capa `persistencia` (`RepositorioAerolinea`, `RepositorioPostgres`, `ConfiguracionBD`); modo memoria si no hay base de datos; integración continua con una base PostgreSQL real; 81 pruebas. |
 
 ---
 

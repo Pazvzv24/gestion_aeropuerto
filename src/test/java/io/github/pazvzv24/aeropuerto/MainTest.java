@@ -81,16 +81,18 @@ class MainTest {
     void ejecutarMenu_SesionDeVuelos_OperaPasajeros() {
         Aerolinea aerolinea = new Aerolinea("Prueba", new Avion("CC-AAA", ModeloAvion.A319));
         // 8: vuelos | 3: programar AM101, origen 1 (SCL), destino 10 (LIM), fecha, CC-AAA
-        // 4: check-in con RUT | 7: iniciar embarque | 5: embarcar | 2: ver pasajeros | 8: volver | 9: salir
+        // 4: check-in con RUT en el asiento 12C | 4: check-in con RUT inválido
+        // 7: iniciar embarque | 5: embarcar | 2: ver pasajeros | 8: pase de abordar | 10: volver | 9: salir
         String entrada = String.join("\n",
                 "8",
                 "3", "am101", "1", "10", "24-12-2026 14:30", "CC-AAA",
-                "4", "AM101", "Camila Rojas", "1", "11111111-1",
-                "4", "AM101", "Otra Persona", "1", "12.345.678-9",
+                "4", "AM101", "Camila Rojas", "1", "11111111-1", "12c",
+                "4", "AM101", "Otra Persona", "1", "12.345.678-9", "A",
                 "7", "AM101", "1",
                 "5", "AM101", "1", "11.111.111-1",
                 "2", "AM101",
-                "8",
+                "8", "AM101", "1", "11.111.111-1",
+                "10",
                 "9") + "\n";
 
         Main.ejecutarMenu(aerolinea, new Scanner(entrada), salida);
@@ -107,6 +109,8 @@ class MainTest {
         assertTrue(texto.contains("[OK] Embarcar pasajero"));
         assertTrue(texto.contains("11.111.***-1"));
         assertFalse(texto.contains("11.111.111-1"));
+        assertTrue(texto.contains("Asiento asignado: 12C"));
+        assertTrue(texto.contains("PASE DE ABORDAR"));
         assertTrue(texto.contains("Saliendo..."));
     }
 }

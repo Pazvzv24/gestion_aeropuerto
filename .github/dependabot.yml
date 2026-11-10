@@ -18,3 +18,9 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+
+  # Imagen de PostgreSQL usada en docker-compose.yml
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"

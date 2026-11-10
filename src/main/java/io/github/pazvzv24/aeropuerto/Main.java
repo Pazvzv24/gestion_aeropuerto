@@ -4,6 +4,10 @@ import io.github.pazvzv24.aeropuerto.ui.Tema;
 import io.github.pazvzv24.aeropuerto.ui.VentanaPrincipal;
 import java.awt.GraphicsEnvironment;
 import java.io.PrintStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -20,7 +24,13 @@ import javax.swing.SwingUtilities;
  */
 public class Main {
 
-    private static final int OPCION_SALIR = 8;
+    private static final int OPCION_VUELOS = 8;
+    private static final int OPCION_SALIR = 9;
+    private static final int VOLVER_DE_VUELOS = 8;
+
+    /** Formato de fecha y hora para la consola, por ejemplo 24-12-2026 14:30. */
+    static final DateTimeFormatter FORMATO_FECHA_HORA =
+            DateTimeFormatter.ofPattern("dd-MM-uuuu HH:mm").withResolverStyle(ResolverStyle.STRICT);
 
     public static void main(String[] args) {
         Aerolinea aerolinea = Aerolinea.altamarAirlines();
@@ -62,6 +72,7 @@ public class Main {
                 case 5 -> moverPasajeros(aerolinea, scanner, salida, false);
                 case 6 -> cambiarEstado(aerolinea, scanner, salida);
                 case 7 -> incorporarAvion(aerolinea, scanner, salida);
+                case OPCION_VUELOS -> salir = !ejecutarMenuVuelos(aerolinea, scanner, salida);
                 case OPCION_SALIR -> {
                     salir = true;
                     salida.println("Saliendo...");
@@ -80,7 +91,216 @@ public class Main {
         salida.println("5. Bajar pasajeros.");
         salida.println("6. Cambiar estado de un avión.");
         salida.println("7. Incorporar avión a la flota.");
+        salida.println(OPCION_VUELOS + ". Vuelos y pasajeros.");
         salida.println(OPCION_SALIR + ". Salir.");
+    }
+
+    // ------------------------------------------------------------ Vuelos y pasajeros
+
+    /**
+     * Submenú de vuelos. Vuelve al menú principal con la opción 8.
+     *
+     * @return false si la entrada terminó (para que el menú principal también termine)
+     */
+    static boolean ejecutarMenuVuelos(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        while (true) {
+            salida.println("\n--- Vuelos y pasajeros ---");
+            salida.println("1. Listar vuelos.");
+            salida.println("2. Ver pasajeros de un vuelo.");
+            salida.println("3. Programar vuelo.");
+            salida.println("4. Hacer check-in.");
+            salida.println("5. Embarcar pasajero.");
+            salida.println("6. Anular check-in.");
+            salida.println("7. Cambiar estado de un vuelo.");
+            salida.println(VOLVER_DE_VUELOS + ". Volver al menú principal.");
+            OptionalInt opcion = leerEntero(scanner, salida, "Seleccione una opción: ");
+            if (opcion.isEmpty()) {
+                salida.println("\nNo hay más entrada. Saliendo...");
+                return false;
+            }
+            switch (opcion.getAsInt()) {
+                case 1 -> listarVuelos(aerolinea, salida);
+                case 2 -> mostrarManifiesto(aerolinea, scanner, salida);
+                case 3 -> programarVuelo(aerolinea, scanner, salida);
+                case 4 -> hacerCheckIn(aerolinea, scanner, salida);
+                case 5 -> operarPasajero(aerolinea, scanner, salida, true);
+                case 6 -> operarPasajero(aerolinea, scanner, salida, false);
+                case 7 -> cambiarEstadoVuelo(aerolinea, scanner, salida);
+                case VOLVER_DE_VUELOS -> {
+                    return true;
+                }
+                default -> salida.println("Opción inválida: elija un número del 1 al " + VOLVER_DE_VUELOS + ".");
+            }
+        }
+    }
+
+    private static void listarVuelos(Aerolinea aerolinea, PrintStream salida) {
+        salida.println("\n--- Vuelos ---");
+        for (Vuelo vuelo : aerolinea.getVuelos()) {
+            salida.println(describir(vuelo));
+        }
+    }
+
+    private static String describir(Vuelo vuelo) {
+        return vuelo.getCodigo() + " | " + vuelo.getRuta()
+                + " | " + FORMATO_FECHA_HORA.format(vuelo.getSalida())
+                + " | " + vuelo.getAvion().getMatricula()
+                + " | " + vuelo.getCantidadPasajeros() + " con check-in"
+                + " | " + vuelo.getEstado();
+    }
+
+    /** Lista de pasajeros con el documento enmascarado: nunca se muestra completo. */
+    private static void mostrarManifiesto(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<Vuelo> vuelo = leerVuelo(aerolinea, scanner, salida);
+        if (vuelo.isEmpty()) {
+            return;
+        }
+        salida.println(describir(vuelo.get()));
+        List<CheckIn> manifiesto = vuelo.get().getManifiesto();
+        if (manifiesto.isEmpty()) {
+            salida.println("  Sin pasajeros registrados.");
+        }
+        for (CheckIn registro : manifiesto) {
+            Pasajero pasajero = registro.getPasajero();
+            salida.println("  " + pasajero.getNombre() + " | " + pasajero.getTipoDocumento()
+                    + " " + pasajero.getDocumentoEnmascarado() + " | " + registro.getEstado());
+        }
+    }
+
+    private static void programarVuelo(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<String> codigo = leerTexto(scanner, salida, "Código del vuelo (formato AM123): ");
+        if (codigo.isEmpty()) {
+            return;
+        }
+        Optional<Destino> origen = elegir(scanner, salida, "Origen", Destino.values());
+        if (origen.isEmpty()) {
+            return;
+        }
+        Optional<Destino> destino = elegir(scanner, salida, "Destino", Destino.values());
+        if (destino.isEmpty()) {
+            return;
+        }
+        Optional<String> fecha = leerTexto(scanner, salida, "Fecha y hora de salida (DD-MM-AAAA HH:MM): ");
+        if (fecha.isEmpty()) {
+            return;
+        }
+        LocalDateTime salidaVuelo;
+        try {
+            salidaVuelo = LocalDateTime.parse(fecha.get(), FORMATO_FECHA_HORA);
+        } catch (DateTimeParseException e) {
+            salida.println("Fecha inválida: use el formato DD-MM-AAAA HH:MM, por ejemplo 24-12-2026 14:30.");
+            return;
+        }
+        Optional<Avion> avion = leerAvion(aerolinea, scanner, salida);
+        if (avion.isEmpty()) {
+            return;
+        }
+        mostrarResultado(aerolinea.programarVuelo(codigo.get(), origen.get(), destino.get(),
+                salidaVuelo, avion.get().getMatricula()), "Programar vuelo", salida);
+    }
+
+    private static void hacerCheckIn(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<Vuelo> vuelo = leerVuelo(aerolinea, scanner, salida);
+        if (vuelo.isEmpty()) {
+            return;
+        }
+        Optional<String> nombre = leerTexto(scanner, salida, "Nombre completo del pasajero: ");
+        if (nombre.isEmpty()) {
+            return;
+        }
+        Optional<TipoDocumento> tipo = elegir(scanner, salida, "Tipo de documento", TipoDocumento.values());
+        if (tipo.isEmpty()) {
+            return;
+        }
+        Optional<String> documento = leerTexto(scanner, salida,
+                tipo.get() == TipoDocumento.RUT ? "RUT (ej. 12.345.678-5): " : "Número de pasaporte: ");
+        if (documento.isEmpty()) {
+            return;
+        }
+        mostrarResultado(aerolinea.hacerCheckIn(vuelo.get().getCodigo(), nombre.get(), tipo.get(), documento.get()),
+                "Check-in", salida);
+    }
+
+    /** Embarca (embarcar = true) o anula el check-in (embarcar = false) de un pasajero. */
+    private static void operarPasajero(Aerolinea aerolinea, Scanner scanner, PrintStream salida, boolean embarcar) {
+        Optional<Vuelo> vuelo = leerVuelo(aerolinea, scanner, salida);
+        if (vuelo.isEmpty()) {
+            return;
+        }
+        Optional<TipoDocumento> tipo = elegir(scanner, salida, "Tipo de documento", TipoDocumento.values());
+        if (tipo.isEmpty()) {
+            return;
+        }
+        Optional<String> documento = leerTexto(scanner, salida, "Documento del pasajero: ");
+        if (documento.isEmpty()) {
+            return;
+        }
+        String codigo = vuelo.get().getCodigo();
+        OperationResult resultado = embarcar
+                ? aerolinea.embarcarPasajero(codigo, tipo.get(), documento.get())
+                : aerolinea.anularCheckIn(codigo, tipo.get(), documento.get());
+        mostrarResultado(resultado, embarcar ? "Embarcar pasajero" : "Anular check-in", salida);
+    }
+
+    private static void cambiarEstadoVuelo(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<Vuelo> encontrado = leerVuelo(aerolinea, scanner, salida);
+        if (encontrado.isEmpty()) {
+            return;
+        }
+        Vuelo vuelo = encontrado.get();
+        List<EstadoVuelo> opciones = vuelo.getEstado().getSiguientes();
+        if (opciones.isEmpty()) {
+            salida.println("El vuelo " + vuelo.getCodigo() + " está " + vuelo.getEstado() + ": no admite más cambios.");
+            return;
+        }
+        salida.println("Estado actual: " + vuelo.getEstado() + ". Acciones posibles:");
+        for (int i = 0; i < opciones.size(); i++) {
+            salida.println("  " + (i + 1) + ". " + vuelo.getEstado().accionHacia(opciones.get(i))
+                    + " (pasa a " + opciones.get(i) + ")");
+        }
+        OptionalInt eleccion = leerEntero(scanner, salida, "Elija una acción: ");
+        if (eleccion.isEmpty()) {
+            return;
+        }
+        int indice = eleccion.getAsInt() - 1;
+        if (indice < 0 || indice >= opciones.size()) {
+            salida.println("Opción inválida.");
+            return;
+        }
+        EstadoVuelo destino = opciones.get(indice);
+        String accion = vuelo.getEstado().accionHacia(destino);
+        mostrarResultado(aerolinea.cambiarEstadoVuelo(vuelo.getCodigo(), destino), accion, salida);
+    }
+
+    /** Pide un código de vuelo y lo busca; avisa si no existe. */
+    private static Optional<Vuelo> leerVuelo(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<String> codigo = leerTexto(scanner, salida, "Código del vuelo (ej. AM101): ");
+        if (codigo.isEmpty()) {
+            return Optional.empty();
+        }
+        Vuelo vuelo = aerolinea.buscarVuelo(codigo.get());
+        if (vuelo == null) {
+            salida.println(OperationResult.FLIGHT_NOT_FOUND.getMessage());
+        }
+        return Optional.ofNullable(vuelo);
+    }
+
+    /** Muestra una lista numerada y devuelve la opción elegida (vacío si la elección no es válida). */
+    private static <T> Optional<T> elegir(Scanner scanner, PrintStream salida, String titulo, T[] opciones) {
+        salida.println(titulo + ":");
+        for (int i = 0; i < opciones.length; i++) {
+            salida.println("  " + (i + 1) + ". " + opciones[i]);
+        }
+        OptionalInt eleccion = leerEntero(scanner, salida, "Elija una opción: ");
+        if (eleccion.isEmpty()) {
+            return Optional.empty();
+        }
+        int indice = eleccion.getAsInt() - 1;
+        if (indice < 0 || indice >= opciones.length) {
+            salida.println("Opción inválida.");
+            return Optional.empty();
+        }
+        return Optional.of(opciones[indice]);
     }
 
     private static void listarFlota(Aerolinea aerolinea, PrintStream salida) {

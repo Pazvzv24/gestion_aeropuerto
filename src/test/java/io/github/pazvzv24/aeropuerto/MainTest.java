@@ -52,7 +52,7 @@ class MainTest {
         Aerolinea aerolinea = new Aerolinea("Prueba", new Avion("CC-AAA", ModeloAvion.A319));
         // 6: cambiar estado de CC-AAA -> 1 (Iniciar embarque)
         // 4: subir 100 a cc-aaa | 4: subir 999 (no caben) | x: entrada inválida
-        // 6: cambiar estado -> 1 (Despegar) | 2: resumen | 8: salir
+        // 6: cambiar estado -> 1 (Despegar) | 2: resumen | 9: salir
         String entrada = String.join("\n",
                 "6", "CC-AAA", "1",
                 "4", "cc-aaa", "100",
@@ -60,7 +60,7 @@ class MainTest {
                 "x",
                 "6", "CC-AAA", "1",
                 "2",
-                "8") + "\n";
+                "9") + "\n";
 
         Main.ejecutarMenu(aerolinea, new Scanner(entrada), salida);
 
@@ -73,6 +73,40 @@ class MainTest {
         assertTrue(texto.contains("Entrada inválida"));
         assertTrue(texto.contains("[OK] Despegar"));
         assertTrue(texto.contains("Pasajeros a bordo: 100"));
+        assertTrue(texto.contains("Saliendo..."));
+    }
+
+    @Test
+    @DisplayName("El submenú de vuelos permite programar, hacer check-in, embarcar y ver pasajeros enmascarados")
+    void ejecutarMenu_SesionDeVuelos_OperaPasajeros() {
+        Aerolinea aerolinea = new Aerolinea("Prueba", new Avion("CC-AAA", ModeloAvion.A319));
+        // 8: vuelos | 3: programar AM101, origen 1 (SCL), destino 10 (LIM), fecha, CC-AAA
+        // 4: check-in con RUT | 7: iniciar embarque | 5: embarcar | 2: ver pasajeros | 8: volver | 9: salir
+        String entrada = String.join("\n",
+                "8",
+                "3", "am101", "1", "10", "24-12-2026 14:30", "CC-AAA",
+                "4", "AM101", "Camila Rojas", "1", "11111111-1",
+                "4", "AM101", "Otra Persona", "1", "12.345.678-9",
+                "7", "AM101", "1",
+                "5", "AM101", "1", "11.111.111-1",
+                "2", "AM101",
+                "8",
+                "9") + "\n";
+
+        Main.ejecutarMenu(aerolinea, new Scanner(entrada), salida);
+
+        String texto = textoSalida();
+        Vuelo vuelo = aerolinea.buscarVuelo("AM101");
+        assertEquals(EstadoVuelo.EMBARCANDO, vuelo.getEstado());
+        assertEquals(1, vuelo.contarPasajeros(EstadoPasajero.EMBARCADO));
+        assertEquals(1, aerolinea.calcularTotalPasajeros());
+        assertTrue(texto.contains("[OK] Programar vuelo"));
+        assertTrue(texto.contains("[OK] Check-in"));
+        assertTrue(texto.contains(OperationResult.INVALID_PASSENGER_DATA.getMessage()));
+        assertTrue(texto.contains("[OK] Iniciar embarque"));
+        assertTrue(texto.contains("[OK] Embarcar pasajero"));
+        assertTrue(texto.contains("11.111.***-1"));
+        assertFalse(texto.contains("11.111.111-1"));
         assertTrue(texto.contains("Saliendo..."));
     }
 }

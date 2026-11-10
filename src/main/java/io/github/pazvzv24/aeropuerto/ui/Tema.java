@@ -4,6 +4,8 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 import io.github.pazvzv24.aeropuerto.EstadoAvion;
+import io.github.pazvzv24.aeropuerto.EstadoPasajero;
+import io.github.pazvzv24.aeropuerto.EstadoVuelo;
 import java.awt.Color;
 import javax.swing.UIManager;
 
@@ -75,6 +77,36 @@ public final class Tema {
                 return oscuro ? new Color(0xFBBF24) : new Color(0xB45309);
             default:
                 return textoSecundario();
+        }
+    }
+
+    /** Color de cada estado del vuelo. */
+    public static Color colorEstado(EstadoVuelo estado) {
+        switch (estado) {
+            case PROGRAMADO:
+                return exito();
+            case RETRASADO:
+                return oscuro ? new Color(0xFBBF24) : new Color(0xB45309);
+            case EMBARCANDO:
+                return acento();
+            case EN_VUELO:
+                return oscuro ? new Color(0xC084FC) : new Color(0x7E22CE);
+            case CANCELADO:
+                return error();
+            default:
+                return textoSecundario();
+        }
+    }
+
+    /** Color de cada estado del pasajero dentro del vuelo. */
+    public static Color colorEstado(EstadoPasajero estado) {
+        switch (estado) {
+            case EMBARCADO:
+                return exito();
+            case NO_SE_PRESENTO:
+                return error();
+            default:
+                return acento();
         }
     }
 

@@ -5,6 +5,7 @@ import io.github.pazvzv24.aeropuerto.Avion;
 import io.github.pazvzv24.aeropuerto.EstadoAvion;
 import io.github.pazvzv24.aeropuerto.ModeloAvion;
 import io.github.pazvzv24.aeropuerto.OperationResult;
+import io.github.pazvzv24.aeropuerto.Vuelo;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
@@ -30,6 +31,7 @@ import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
@@ -43,7 +45,8 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 
 /**
- * Ventana principal: resumen de la flota, tabla de aviones con filtros y panel de operaciones.
+ * Ventana principal: resumen de la flota y dos pestañas, "Flota" (tabla de aviones con filtros
+ * y panel de operaciones) y "Vuelos" (vuelos, pasajeros, check-in y embarque).
  * La ventana solo muestra datos y llama a Aerolinea: las reglas del negocio
  * están en las clases del modelo y se prueban por separado.
  */
@@ -57,6 +60,8 @@ public final class VentanaPrincipal extends JFrame {
     private final AvionesTableModel modelo;
     private final JTable tabla;
     private final transient TableRowSorter<AvionesTableModel> ordenador;
+    private final PanelVuelos panelVuelos;
+    private final JTabbedPane pestanas = new JTabbedPane();
 
     private final JLabel lblTitulo = new JLabel();
     private final JButton btnIncorporar = new JButton("+ Incorporar avión");
@@ -81,11 +86,12 @@ public final class VentanaPrincipal extends JFrame {
     private final JLabel lblBarraEstado = new JLabel("Seleccione un avión de la tabla para operar.");
 
     public VentanaPrincipal(Aerolinea aerolinea) {
-        super(aerolinea.getNombre() + " · Gestión de flota");
+        super(aerolinea.getNombre() + " · Gestión de flota y vuelos");
         this.aerolinea = aerolinea;
         this.modelo = new AvionesTableModel(aerolinea);
         this.tabla = new JTable(modelo);
         this.ordenador = new TableRowSorter<>(modelo);
+        this.panelVuelos = new PanelVuelos(aerolinea, this::refrescarFlota);
 
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setMinimumSize(new Dimension(1000, 640));
@@ -95,7 +101,7 @@ public final class VentanaPrincipal extends JFrame {
         JPanel contenido = new JPanel(new BorderLayout(0, 16));
         contenido.setBorder(BorderFactory.createEmptyBorder(20, 24, 12, 24));
         contenido.add(crearEncabezado(), BorderLayout.NORTH);
-        contenido.add(crearCuerpo(), BorderLayout.CENTER);
+        contenido.add(crearPestanas(), BorderLayout.CENTER);
         contenido.add(crearBarraEstado(), BorderLayout.SOUTH);
         setContentPane(contenido);
 
@@ -109,7 +115,7 @@ public final class VentanaPrincipal extends JFrame {
     private JPanel crearEncabezado() {
         lblTitulo.setText(aerolinea.getNombre());
         lblTitulo.setFont(lblTitulo.getFont().deriveFont(Font.BOLD, 24f));
-        JLabel lblSubtitulo = etiquetaSecundaria("Gestión de flota");
+        JLabel lblSubtitulo = etiquetaSecundaria("Gestión de flota y vuelos");
         lblSubtitulo.setFont(lblSubtitulo.getFont().deriveFont(14f));
 
         JPanel titulos = new JPanel(new GridLayout(2, 1, 0, 2));
@@ -157,6 +163,20 @@ public final class VentanaPrincipal extends JFrame {
         return tarjeta;
     }
 
+    private JTabbedPane crearPestanas() {
+        pestanas.putClientProperty("JTabbedPane.tabHeight", 36);
+        pestanas.addTab("Flota", crearCuerpo());
+        pestanas.addTab("Vuelos y pasajeros", panelVuelos);
+        pestanas.addChangeListener(e -> {
+            if (pestanas.getSelectedComponent() == panelVuelos) {
+                panelVuelos.actualizar();
+            } else {
+                refrescarFlota();
+            }
+        });
+        return pestanas;
+    }
+
     private JPanel crearCuerpo() {
         configurarTabla();
 
@@ -167,6 +187,7 @@ public final class VentanaPrincipal extends JFrame {
 
         JPanel cuerpo = new JPanel(new BorderLayout(16, 0));
         cuerpo.setOpaque(false);
+        cuerpo.setBorder(BorderFactory.createEmptyBorder(12, 0, 0, 0));
         cuerpo.add(izquierda, BorderLayout.CENTER);
         cuerpo.add(crearPanelOperaciones(), BorderLayout.EAST);
         return cuerpo;
@@ -392,6 +413,20 @@ public final class VentanaPrincipal extends JFrame {
         lblBarraEstado.setText(accion + ": " + (resultado.isSuccess() ? "operación exitosa." : resultado.getMessage()));
     }
 
+    /** Vuelve a leer la flota manteniendo el avión seleccionado (lo usa la pestaña de vuelos). */
+    private void refrescarFlota() {
+        Avion avion = avionSeleccionado();
+        modelo.actualizar();
+        if (avion != null) {
+            int filaVista = tabla.convertRowIndexToView(modelo.buscarFila(avion.getMatricula()));
+            if (filaVista >= 0) {
+                tabla.setRowSelectionInterval(filaVista, filaVista);
+            }
+        }
+        actualizarResumen();
+        actualizarSeleccion();
+    }
+
     private Avion avionSeleccionado() {
         int filaVista = tabla.getSelectedRow();
         if (filaVista < 0) {
@@ -417,12 +452,22 @@ public final class VentanaPrincipal extends JFrame {
                     + avion.getCantidadMaxima() + " pasajeros)");
             lblEstadoAvion.setForeground(Tema.colorEstado(estado));
             lblDescripcionEstado.setText("<html><div style='width:215px'>" + estado.getDescripcion() + "</div></html>");
-            btnSubir.setEnabled(estado.permiteSubirPasajeros());
-            btnBajar.setEnabled(estado.permiteBajarPasajeros());
+            Vuelo vuelo = aerolinea.buscarVueloPendiente(avion);
+            boolean porVuelo = aerolinea.estaControladoPorVuelo(avion);
+            if (vuelo != null) {
+                lblDescripcionEstado.setText("<html><div style='width:215px'>" + estado.getDescripcion()
+                        + "<br><b>Vuelo " + vuelo + "</b> (" + vuelo.getEstado() + ")"
+                        + (porVuelo ? ": se opera desde la pestaña Vuelos y pasajeros." : ".") + "</div></html>");
+            }
+            btnSubir.setEnabled(!porVuelo && estado.permiteSubirPasajeros());
+            btnBajar.setEnabled(!porVuelo && estado.permiteBajarPasajeros());
             btnSubir.setToolTipText(estado.permiteSubirPasajeros() ? null : "Solo se suben pasajeros durante el embarque");
             btnBajar.setToolTipText(estado.permiteBajarPasajeros() ? null : "Solo se bajan pasajeros en embarque o desembarque");
 
-            for (EstadoAvion destino : estado.getSiguientes()) {
+            for (EstadoAvion destino : porVuelo ? List.<EstadoAvion>of() : estado.getSiguientes()) {
+                if (vuelo != null && destino == EstadoAvion.EMBARCANDO) {
+                    continue; // el embarque de un avión con vuelo se inicia desde ese vuelo
+                }
                 JButton boton = new JButton(estado.accionHacia(destino));
                 boton.setAlignmentX(Component.LEFT_ALIGNMENT);
                 boton.setMaximumSize(new Dimension(Integer.MAX_VALUE, boton.getPreferredSize().height));
@@ -430,7 +475,10 @@ public final class VentanaPrincipal extends JFrame {
                 panelAcciones.add(boton);
                 panelAcciones.add(javax.swing.Box.createVerticalStrut(6));
             }
-            if (estado.getSiguientes().isEmpty()) {
+            if (porVuelo) {
+                panelAcciones.add(etiquetaSecundaria("<html><div style='width:215px'>Embarque, despegue y aterrizaje"
+                        + " se hacen desde el vuelo " + vuelo.getCodigo() + ".</div></html>"));
+            } else if (estado.getSiguientes().isEmpty()) {
                 panelAcciones.add(etiquetaSecundaria("Sin acciones: el avión fue dado de baja."));
             }
         }
@@ -460,6 +508,7 @@ public final class VentanaPrincipal extends JFrame {
         btnTema.setText(Tema.esOscuro() ? "Tema claro" : "Tema oscuro");
         aplicarColores();
         actualizarSeleccion();
+        panelVuelos.actualizar();
     }
 
     /** Colores que dependen del tema (se vuelven a aplicar al cambiarlo). */

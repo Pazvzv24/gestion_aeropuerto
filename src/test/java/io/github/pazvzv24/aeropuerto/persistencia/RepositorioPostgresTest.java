@@ -58,6 +58,7 @@ class RepositorioPostgresTest {
         assertEquals(EstadoAvion.EMBARCANDO, cargada.buscarAvion("CC-AMD").getEstado());
         assertEquals(2, cargada.buscarVuelo("AM205").contarPasajeros(EstadoPasajero.EMBARCADO));
         assertEquals(4, cargada.buscarVuelo("AM101").getCantidadPasajeros());
+        assertEquals("3A", cargada.buscarVuelo("AM101").buscarPasajero(TipoDocumento.RUT, "11.111.111-1").getAsiento());
     }
 
     @Test

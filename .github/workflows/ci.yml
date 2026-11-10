@@ -1,5 +1,6 @@
 # Integración continua: en cada push o pull request a main (y cada lunes),
-# GitHub compila el proyecto con Maven y ejecuta todas las pruebas.
+# GitHub levanta una base PostgreSQL temporal con Docker Compose, compila el proyecto
+# con Maven y ejecuta todas las pruebas, incluidas las de la base de datos.
 name: CI
 
 on:
@@ -34,6 +35,22 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Crear contraseñas temporales para la base de datos de prueba
+        run: |
+          CLAVE_POSTGRES=$(openssl rand -hex 16)
+          CLAVE_APP=$(openssl rand -hex 16)
+          echo "::add-mask::$CLAVE_POSTGRES"
+          echo "::add-mask::$CLAVE_APP"
+          {
+            echo "POSTGRES_PASSWORD=$CLAVE_POSTGRES"
+            echo "ALTAMAR_DB_URL=jdbc:postgresql://127.0.0.1:5433/altamar"
+            echo "ALTAMAR_DB_USER=altamar_app"
+            echo "ALTAMAR_DB_PASSWORD=$CLAVE_APP"
+          } > .env
+
+      - name: Levantar PostgreSQL con Docker Compose
+        run: docker compose up -d --wait
+
       - name: Compilar, probar y empaquetar
         run: mvn --batch-mode --no-transfer-progress verify
 
@@ -43,3 +60,7 @@ jobs:
         with:
           name: resultados-pruebas
           path: target/surefire-reports/
+
+      - name: Apagar PostgreSQL y borrar los datos de prueba
+        if: always()
+        run: docker compose down -v

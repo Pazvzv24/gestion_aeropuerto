@@ -1,0 +1,42 @@
+# =====================================================================
+# Altamar Airlines · Base de datos PostgreSQL para desarrollo local
+#
+#   docker compose up -d      enciende la base de datos
+#   docker compose down       la apaga (los datos se conservan)
+#   docker compose down -v    la apaga y BORRA los datos (vuelve a empezar)
+#
+# Las contraseñas se leen del archivo .env, que nunca se sube a GitHub.
+# =====================================================================
+name: altamar
+
+services:
+  db:
+    # Versión fija: no cambia sola al descargar (Dependabot avisa si hay una nueva)
+    image: postgres:17.6-alpine
+    container_name: altamar-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: altamar
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en el archivo .env}
+      # Solo lo usa el script que crea el usuario de la aplicación (db/init/02_usuario_app.sql)
+      ALTAMAR_DB_PASSWORD: ${ALTAMAR_DB_PASSWORD:?Defina ALTAMAR_DB_PASSWORD en el archivo .env}
+    ports:
+      # Solo accesible desde este computador (127.0.0.1), no desde la red.
+      # Puerto 5433 para no chocar con un PostgreSQL instalado en Windows (5432).
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - altamar-datos:/var/lib/postgresql/data
+      # Scripts que crean las tablas y el usuario de la aplicación (solo la primera vez)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Por TCP: así solo responde cuando terminaron los scripts de inicio
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d altamar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  altamar-datos:

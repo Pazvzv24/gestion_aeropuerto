@@ -10,7 +10,16 @@ public final class CheckIn {
     private EstadoPasajero estado = EstadoPasajero.CHECK_IN;
 
     CheckIn(Pasajero pasajero) {
+        this(pasajero, EstadoPasajero.CHECK_IN);
+    }
+
+    /** Registro con un estado conocido (por ejemplo, leído desde la base de datos). */
+    public CheckIn(Pasajero pasajero, EstadoPasajero estado) {
+        if (pasajero == null || estado == null) {
+            throw new IllegalArgumentException("El pasajero y su estado son obligatorios.");
+        }
         this.pasajero = pasajero;
+        this.estado = estado;
     }
 
     public Pasajero getPasajero() {

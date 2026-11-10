@@ -30,6 +30,8 @@ class PasajerosTableModelTest {
         assertEquals("RUT 12.345.***-5", modelo.getValueAt(0, PasajerosTableModel.COLUMNA_DOCUMENTO));
         assertEquals("Pasaporte ******567", modelo.getValueAt(1, PasajerosTableModel.COLUMNA_DOCUMENTO));
         assertEquals(EstadoPasajero.CHECK_IN, modelo.getValueAt(1, PasajerosTableModel.COLUMNA_ESTADO));
+        assertEquals("1A", modelo.getValueAt(0, PasajerosTableModel.COLUMNA_ASIENTO));
+        assertEquals("1B", modelo.getValueAt(1, PasajerosTableModel.COLUMNA_ASIENTO));
     }
 
     @Test

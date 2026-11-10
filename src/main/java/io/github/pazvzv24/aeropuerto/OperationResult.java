@@ -23,9 +23,12 @@ public enum OperationResult {
     DUPLICATE_PASSENGER("Error: El pasajero ya tiene check-in en este vuelo", 409),
     ALREADY_BOARDED("Error: El pasajero ya embarcó", 409),
     CHECK_IN_CLOSED("Error: El check-in de este vuelo está cerrado", 409),
+    SEAT_TAKEN("Error: El asiento ya está ocupado", 409),
+    BOARDING_PASS_UNAVAILABLE("Error: No se puede emitir el pase de abordar en el estado actual", 409),
     FLEET_FULL("Error: La flota alcanzó su capacidad máxima", 409),
     INVALID_AMOUNT("Error: Cantidad de pasajeros inválida", 422),
     INVALID_REGISTRATION("Error: Matrícula inválida, use el formato CC-XXX", 422),
+    INVALID_SEAT("Error: Asiento inválido para este avión (ejemplo: 12C)", 422),
     INVALID_FLIGHT_DATA("Error: Datos del vuelo inválidos; revise el código (AM123), la ruta y la hora", 422),
     INVALID_PASSENGER_DATA("Error: Datos del pasajero inválidos; revise el nombre y el documento", 422);
 

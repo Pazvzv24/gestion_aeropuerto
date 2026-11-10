@@ -52,8 +52,11 @@ CREATE TABLE altamar.pasajeros_vuelo (
     documento      VARCHAR(12)  NOT NULL,
     estado         VARCHAR(14)  NOT NULL
                    CHECK (estado IN ('CHECK_IN', 'EMBARCADO', 'NO_SE_PRESENTO')),
+    asiento        VARCHAR(3)   NOT NULL CHECK (asiento ~ '^[1-9][0-9]?[A-HJK]$'),
     -- Un documento no puede repetirse en el mismo vuelo
     CONSTRAINT documento_unico_por_vuelo UNIQUE (codigo_vuelo, tipo_documento, documento),
+    -- Dos pasajeros no pueden tener el mismo asiento en el mismo vuelo
+    CONSTRAINT asiento_unico_por_vuelo UNIQUE (codigo_vuelo, asiento),
     CONSTRAINT orden_unico_por_vuelo UNIQUE (codigo_vuelo, orden)
 );
 

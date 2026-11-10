@@ -51,6 +51,59 @@ public final class Vuelo {
         this.avion = avion;
     }
 
+    /**
+     * Reconstruye un vuelo guardado, con su estado y su lista de pasajeros.
+     * Revisa que todo sea coherente con el estado del vuelo y del avión.
+     *
+     * @throws IllegalArgumentException si los datos no son coherentes
+     */
+    public static Vuelo restaurar(String codigo, Destino origen, Destino destino, LocalDateTime salida,
+                                  Avion avion, EstadoVuelo estado, List<CheckIn> pasajeros) {
+        if (estado == null || pasajeros == null) {
+            throw new IllegalArgumentException("El estado y la lista de pasajeros son obligatorios.");
+        }
+        Vuelo vuelo = new Vuelo(codigo, origen, destino, salida, avion);
+        vuelo.estado = estado;
+        for (CheckIn registro : pasajeros) {
+            if (registro == null) {
+                throw new IllegalArgumentException("La lista de pasajeros no puede contener valores nulos.");
+            }
+            Pasajero pasajero = registro.getPasajero();
+            if (vuelo.buscarPasajero(pasajero.getTipoDocumento(), pasajero.getDocumento()) != null) {
+                throw new IllegalArgumentException("Documento repetido en el vuelo " + vuelo.codigo + ".");
+            }
+            if (!estadoPasajeroPosible(estado, registro.getEstado())) {
+                throw new IllegalArgumentException("Pasajero en estado " + registro.getEstado()
+                        + " imposible para un vuelo " + estado + ".");
+            }
+            vuelo.manifiesto.add(new CheckIn(pasajero, registro.getEstado()));
+        }
+        if (vuelo.manifiesto.size() > avion.getCantidadMaxima()) {
+            throw new IllegalArgumentException("El vuelo " + vuelo.codigo + " tiene más pasajeros que asientos.");
+        }
+        if (estado.controlaElAvion()) {
+            EstadoAvion esperado = estado == EstadoVuelo.EMBARCANDO ? EstadoAvion.EMBARCANDO : EstadoAvion.EN_VUELO;
+            if (avion.getEstado() != esperado
+                    || avion.getPasajerosActuales() != vuelo.contarPasajeros(EstadoPasajero.EMBARCADO)) {
+                throw new IllegalArgumentException("El avión del vuelo " + vuelo.codigo + " no coincide con su estado.");
+            }
+        }
+        return vuelo;
+    }
+
+    /** Antes de embarcar solo hay check-in; al embarcar, embarcados; después del despegue, nadie queda en check-in. */
+    private static boolean estadoPasajeroPosible(EstadoVuelo vuelo, EstadoPasajero pasajero) {
+        switch (vuelo) {
+            case EMBARCANDO:
+                return pasajero != EstadoPasajero.NO_SE_PRESENTO;
+            case EN_VUELO:
+            case ATERRIZADO:
+                return pasajero != EstadoPasajero.CHECK_IN;
+            default:
+                return pasajero == EstadoPasajero.CHECK_IN;
+        }
+    }
+
     public static boolean esCodigoValido(String codigo) {
         return codigo != null && FORMATO_CODIGO.matcher(normalizarCodigo(codigo)).matches();
     }

@@ -33,7 +33,7 @@ public class Main {
     private static final String NOMBRE_AEROLINEA = "Altamar Airlines";
     private static final int OPCION_VUELOS = 8;
     private static final int OPCION_SALIR = 9;
-    private static final int VOLVER_DE_VUELOS = 8;
+    private static final int VOLVER_DE_VUELOS = 10;
 
     /** Formato de fecha y hora para la consola, por ejemplo 24-12-2026 14:30. */
     static final DateTimeFormatter FORMATO_FECHA_HORA =
@@ -191,6 +191,8 @@ public class Main {
             salida.println("5. Embarcar pasajero.");
             salida.println("6. Anular check-in.");
             salida.println("7. Cambiar estado de un vuelo.");
+            salida.println("8. Ver pase de abordar.");
+            salida.println("9. Cambiar asiento.");
             salida.println(VOLVER_DE_VUELOS + ". Volver al menú principal.");
             OptionalInt opcion = leerEntero(scanner, salida, "Seleccione una opción: ");
             if (opcion.isEmpty()) {
@@ -205,6 +207,8 @@ public class Main {
                 case 5 -> operarPasajero(aerolinea, scanner, salida, true);
                 case 6 -> operarPasajero(aerolinea, scanner, salida, false);
                 case 7 -> cambiarEstadoVuelo(aerolinea, scanner, salida);
+                case 8 -> mostrarPaseAbordar(aerolinea, scanner, salida);
+                case 9 -> cambiarAsiento(aerolinea, scanner, salida);
                 case VOLVER_DE_VUELOS -> {
                     return true;
                 }
@@ -241,8 +245,8 @@ public class Main {
         }
         for (CheckIn registro : manifiesto) {
             Pasajero pasajero = registro.getPasajero();
-            salida.println("  " + pasajero.getNombre() + " | " + pasajero.getTipoDocumento()
-                    + " " + pasajero.getDocumentoEnmascarado() + " | " + registro.getEstado());
+            salida.println("  " + registro.getAsiento() + " | " + pasajero.getNombre() + " | "
+                    + pasajero.getTipoDocumento() + " " + pasajero.getDocumentoEnmascarado() + " | " + registro.getEstado());
         }
     }
 
@@ -296,8 +300,51 @@ public class Main {
         if (documento.isEmpty()) {
             return;
         }
-        mostrarResultado(aerolinea.hacerCheckIn(vuelo.get().getCodigo(), nombre.get(), tipo.get(), documento.get()),
-                "Check-in", salida);
+        Optional<String> asiento = leerTexto(scanner, salida, "Asiento (ej. 12C) o A para asignar automáticamente: ");
+        if (asiento.isEmpty()) {
+            return;
+        }
+        String elegido = asiento.get().equalsIgnoreCase("A") ? null : asiento.get();
+        OperationResult resultado = aerolinea.hacerCheckIn(vuelo.get().getCodigo(), nombre.get(), tipo.get(),
+                documento.get(), elegido);
+        mostrarResultado(resultado, "Check-in", salida);
+        if (resultado.isSuccess()) {
+            CheckIn registro = vuelo.get().buscarPasajero(tipo.get(), documento.get());
+            salida.println("Asiento asignado: " + registro.getAsiento());
+        }
+    }
+
+    private static void mostrarPaseAbordar(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<Vuelo> vuelo = leerVuelo(aerolinea, scanner, salida);
+        Optional<TipoDocumento> tipo = vuelo.isEmpty() ? Optional.empty()
+                : elegir(scanner, salida, "Tipo de documento", TipoDocumento.values());
+        Optional<String> documento = tipo.isEmpty() ? Optional.empty()
+                : leerTexto(scanner, salida, "Documento del pasajero: ");
+        if (documento.isEmpty()) {
+            return;
+        }
+        PaseAbordar pase = aerolinea.emitirPaseAbordar(vuelo.get().getCodigo(), tipo.get(), documento.get());
+        if (pase == null) {
+            OperationResult motivo = vuelo.get().validarPaseAbordar(tipo.get(), documento.get());
+            mostrarResultado(motivo, "Pase de abordar", salida);
+            return;
+        }
+        salida.println(pase.aTexto());
+    }
+
+    private static void cambiarAsiento(Aerolinea aerolinea, Scanner scanner, PrintStream salida) {
+        Optional<Vuelo> vuelo = leerVuelo(aerolinea, scanner, salida);
+        Optional<TipoDocumento> tipo = vuelo.isEmpty() ? Optional.empty()
+                : elegir(scanner, salida, "Tipo de documento", TipoDocumento.values());
+        Optional<String> documento = tipo.isEmpty() ? Optional.empty()
+                : leerTexto(scanner, salida, "Documento del pasajero: ");
+        Optional<String> asiento = documento.isEmpty() ? Optional.empty()
+                : leerTexto(scanner, salida, "Nuevo asiento (ej. 12C): ");
+        if (asiento.isEmpty()) {
+            return;
+        }
+        mostrarResultado(aerolinea.cambiarAsiento(vuelo.get().getCodigo(), tipo.get(), documento.get(), asiento.get()),
+                "Cambiar asiento", salida);
     }
 
     /** Embarca (embarcar = true) o anula el check-in (embarcar = false) de un pasajero. */

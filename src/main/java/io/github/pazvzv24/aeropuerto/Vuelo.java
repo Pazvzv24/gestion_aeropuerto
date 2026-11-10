@@ -3,8 +3,10 @@ package io.github.pazvzv24.aeropuerto;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -76,7 +78,17 @@ public final class Vuelo {
                 throw new IllegalArgumentException("Pasajero en estado " + registro.getEstado()
                         + " imposible para un vuelo " + estado + ".");
             }
-            vuelo.manifiesto.add(new CheckIn(pasajero, registro.getEstado()));
+            String asiento = registro.getAsiento();
+            if (asiento != null && (!avion.getModelo().esAsientoValido(asiento) || vuelo.estaOcupado(asiento))) {
+                throw new IllegalArgumentException("Asiento " + asiento + " inválido o repetido en el vuelo "
+                        + vuelo.codigo + ".");
+            }
+            vuelo.manifiesto.add(new CheckIn(pasajero, registro.getEstado(), asiento));
+        }
+        for (CheckIn registro : vuelo.manifiesto) {
+            if (registro.getAsiento() == null) {
+                registro.cambiarAsiento(vuelo.primerAsientoLibre());
+            }
         }
         if (vuelo.manifiesto.size() > avion.getCantidadMaxima()) {
             throw new IllegalArgumentException("El vuelo " + vuelo.codigo + " tiene más pasajeros que asientos.");
@@ -171,10 +183,17 @@ public final class Vuelo {
     }
 
     /**
-     * Registra al pasajero en el vuelo. Se permite antes del despegue,
-     * sin documentos repetidos y sin superar la capacidad del avión.
+     * Registra al pasajero en el vuelo con el primer asiento libre.
+     * Se permite antes del despegue, sin documentos repetidos y sin superar la capacidad del avión.
      */
     public OperationResult hacerCheckIn(Pasajero pasajero) {
+        return hacerCheckIn(pasajero, null);
+    }
+
+    /**
+     * Registra al pasajero en el asiento elegido (o en el primero libre si {@code asiento} es null o vacío).
+     */
+    public OperationResult hacerCheckIn(Pasajero pasajero, String asiento) {
         if (pasajero == null) {
             return OperationResult.INVALID_PASSENGER_DATA;
         }
@@ -187,7 +206,92 @@ public final class Vuelo {
         if (manifiesto.size() >= avion.getCantidadMaxima()) {
             return OperationResult.CAPACITY_EXCEEDED;
         }
-        manifiesto.add(new CheckIn(pasajero));
+        String elegido;
+        if (asiento == null || asiento.isBlank()) {
+            elegido = primerAsientoLibre();
+        } else {
+            OperationResult validacion = validarAsientoLibre(asiento);
+            if (!validacion.isSuccess()) {
+                return validacion;
+            }
+            elegido = ModeloAvion.normalizarAsiento(asiento);
+        }
+        manifiesto.add(new CheckIn(pasajero, EstadoPasajero.CHECK_IN, elegido));
+        return OperationResult.SUCCESS;
+    }
+
+    /** Cambia el asiento de un pasajero que aún no embarca, mientras el check-in está abierto. */
+    public OperationResult cambiarAsiento(TipoDocumento tipo, String documento, String nuevoAsiento) {
+        CheckIn registro = buscarPasajero(tipo, documento);
+        if (registro == null) {
+            return OperationResult.PASSENGER_NOT_FOUND;
+        }
+        if (!estado.permiteCheckIn()) {
+            return OperationResult.CHECK_IN_CLOSED;
+        }
+        if (registro.getEstado() == EstadoPasajero.EMBARCADO) {
+            return OperationResult.ALREADY_BOARDED;
+        }
+        OperationResult validacion = validarAsientoLibre(nuevoAsiento);
+        if (!validacion.isSuccess()) {
+            return validacion;
+        }
+        registro.cambiarAsiento(ModeloAvion.normalizarAsiento(nuevoAsiento));
+        return OperationResult.SUCCESS;
+    }
+
+    private OperationResult validarAsientoLibre(String asiento) {
+        if (!avion.getModelo().esAsientoValido(asiento)) {
+            return OperationResult.INVALID_SEAT;
+        }
+        return estaOcupado(asiento) ? OperationResult.SEAT_TAKEN : OperationResult.SUCCESS;
+    }
+
+    /** true si algún pasajero del vuelo tiene ese asiento. */
+    public boolean estaOcupado(String asiento) {
+        String buscado = ModeloAvion.normalizarAsiento(asiento);
+        for (CheckIn registro : manifiesto) {
+            if (buscado.equals(registro.getAsiento())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Asientos ocupados del vuelo, para dibujar el mapa de asientos. */
+    public Set<String> getAsientosOcupados() {
+        Set<String> ocupados = new HashSet<>();
+        for (CheckIn registro : manifiesto) {
+            if (registro.getAsiento() != null) {
+                ocupados.add(registro.getAsiento());
+            }
+        }
+        return ocupados;
+    }
+
+    /** Primer asiento libre en orden (1A, 1B, ...), o null si el avión está lleno. */
+    private String primerAsientoLibre() {
+        Set<String> ocupados = getAsientosOcupados();
+        for (String asiento : avion.getModelo().getAsientos()) {
+            if (!ocupados.contains(asiento)) {
+                return asiento;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Revisa si se puede emitir el pase de abordar: el pasajero debe estar en el vuelo,
+     * no haber quedado como "No se presentó" y el vuelo no puede estar terminado ni cancelado.
+     */
+    public OperationResult validarPaseAbordar(TipoDocumento tipo, String documento) {
+        CheckIn registro = buscarPasajero(tipo, documento);
+        if (registro == null) {
+            return OperationResult.PASSENGER_NOT_FOUND;
+        }
+        if (estado.esFinal() || registro.getEstado() == EstadoPasajero.NO_SE_PRESENTO) {
+            return OperationResult.BOARDING_PASS_UNAVAILABLE;
+        }
         return OperationResult.SUCCESS;
     }
 

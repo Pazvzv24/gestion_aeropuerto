@@ -82,12 +82,12 @@ public final class Aerolinea {
         programarVuelo("AM412", Destino.SCL, Destino.GRU, LocalDateTime.of(hoy, LocalTime.of(21, 10)), "CC-AMK");
         programarVuelo("AM518", Destino.SCL, Destino.ANF, LocalDateTime.of(hoy, LocalTime.of(9, 0)), "CC-AMN");
 
-        hacerCheckIn("AM101", "Camila Rojas Fuentes", TipoDocumento.RUT, "11.111.111-1");
-        hacerCheckIn("AM101", "Matías Soto Pizarro", TipoDocumento.RUT, "22.222.222-2");
+        hacerCheckIn("AM101", "Camila Rojas Fuentes", TipoDocumento.RUT, "11.111.111-1", "3A");
+        hacerCheckIn("AM101", "Matías Soto Pizarro", TipoDocumento.RUT, "22.222.222-2", "3B");
         hacerCheckIn("AM101", "Lucía Fernández Ortiz", TipoDocumento.PASAPORTE, "PE4821930");
-        hacerCheckIn("AM101", "Diego Muñoz Castillo", TipoDocumento.RUT, "33.333.333-3");
+        hacerCheckIn("AM101", "Diego Muñoz Castillo", TipoDocumento.RUT, "33.333.333-3", "14F");
 
-        hacerCheckIn("AM205", "Valentina Araya Díaz", TipoDocumento.RUT, "44.444.444-4");
+        hacerCheckIn("AM205", "Valentina Araya Díaz", TipoDocumento.RUT, "44.444.444-4", "1A");
         hacerCheckIn("AM205", "Benjamín Torres Vega", TipoDocumento.RUT, "55.555.555-5");
         hacerCheckIn("AM205", "Isidora Contreras Lagos", TipoDocumento.RUT, "66.666.666-6");
         hacerCheckIn("AM205", "Tomás Herrera Molina", TipoDocumento.RUT, "77.777.777-7");
@@ -371,10 +371,17 @@ public final class Aerolinea {
 
     /** Registra un pasajero en el vuelo; valida el nombre y el documento (RUT con módulo 11). */
     public OperationResult hacerCheckIn(String codigoVuelo, String nombre, TipoDocumento tipo, String documento) {
-        return notificar(hacerCheckInSinGuardar(codigoVuelo, nombre, tipo, documento));
+        return hacerCheckIn(codigoVuelo, nombre, tipo, documento, null);
     }
 
-    private OperationResult hacerCheckInSinGuardar(String codigoVuelo, String nombre, TipoDocumento tipo, String documento) {
+    /** Check-in en un asiento elegido (o en el primero libre si {@code asiento} es null o vacío). */
+    public OperationResult hacerCheckIn(String codigoVuelo, String nombre, TipoDocumento tipo, String documento,
+                                        String asiento) {
+        return notificar(hacerCheckInSinGuardar(codigoVuelo, nombre, tipo, documento, asiento));
+    }
+
+    private OperationResult hacerCheckInSinGuardar(String codigoVuelo, String nombre, TipoDocumento tipo,
+                                                   String documento, String asiento) {
         Vuelo vuelo = buscarVuelo(codigoVuelo);
         if (vuelo == null) {
             return OperationResult.FLIGHT_NOT_FOUND;
@@ -382,7 +389,27 @@ public final class Aerolinea {
         if (!Pasajero.esNombreValido(nombre) || !Pasajero.esDocumentoValido(tipo, documento)) {
             return OperationResult.INVALID_PASSENGER_DATA;
         }
-        return vuelo.hacerCheckIn(new Pasajero(nombre, tipo, documento));
+        return vuelo.hacerCheckIn(new Pasajero(nombre, tipo, documento), asiento);
+    }
+
+    /** Cambia el asiento de un pasajero que aún no embarca. */
+    public OperationResult cambiarAsiento(String codigoVuelo, TipoDocumento tipo, String documento, String asiento) {
+        Vuelo vuelo = buscarVuelo(codigoVuelo);
+        return notificar(vuelo == null ? OperationResult.FLIGHT_NOT_FOUND
+                : vuelo.cambiarAsiento(tipo, documento, asiento));
+    }
+
+    /**
+     * Emite el pase de abordar de un pasajero.
+     *
+     * @return el pase, o null si no se puede emitir (ver {@link Vuelo#validarPaseAbordar})
+     */
+    public PaseAbordar emitirPaseAbordar(String codigoVuelo, TipoDocumento tipo, String documento) {
+        Vuelo vuelo = buscarVuelo(codigoVuelo);
+        if (vuelo == null || !vuelo.validarPaseAbordar(tipo, documento).isSuccess()) {
+            return null;
+        }
+        return new PaseAbordar(nombre, vuelo, vuelo.buscarPasajero(tipo, documento));
     }
 
     public OperationResult anularCheckIn(String codigoVuelo, TipoDocumento tipo, String documento) {

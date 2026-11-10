@@ -47,7 +47,7 @@ public final class RepositorioPostgres implements RepositorioAerolinea {
     private static final String SELECT_VUELOS =
             "SELECT codigo, origen, destino, salida, matricula, estado FROM altamar.vuelos ORDER BY salida, codigo";
     private static final String SELECT_PASAJEROS =
-            "SELECT codigo_vuelo, nombre, tipo_documento, documento, estado"
+            "SELECT codigo_vuelo, nombre, tipo_documento, documento, estado, asiento"
             + " FROM altamar.pasajeros_vuelo ORDER BY codigo_vuelo, orden";
 
     private static final String GUARDAR_AVION =
@@ -60,8 +60,8 @@ public final class RepositorioPostgres implements RepositorioAerolinea {
     private static final String BORRAR_PASAJEROS =
             "DELETE FROM altamar.pasajeros_vuelo WHERE codigo_vuelo = ?";
     private static final String GUARDAR_PASAJERO =
-            "INSERT INTO altamar.pasajeros_vuelo (codigo_vuelo, orden, nombre, tipo_documento, documento, estado)"
-            + " VALUES (?, ?, ?, ?, ?, ?)";
+            "INSERT INTO altamar.pasajeros_vuelo (codigo_vuelo, orden, nombre, tipo_documento, documento, estado, asiento)"
+            + " VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     private final ConfiguracionBD configuracion;
     private final String nombreAerolinea;
@@ -123,7 +123,8 @@ public final class RepositorioPostgres implements RepositorioAerolinea {
                         TipoDocumento.valueOf(fila.getString("tipo_documento")),
                         fila.getString("documento"));
                 pasajeros.computeIfAbsent(fila.getString("codigo_vuelo"), codigo -> new ArrayList<>())
-                        .add(new CheckIn(pasajero, EstadoPasajero.valueOf(fila.getString("estado"))));
+                        .add(new CheckIn(pasajero, EstadoPasajero.valueOf(fila.getString("estado")),
+                                fila.getString("asiento")));
             }
         }
         return pasajeros;
@@ -211,6 +212,7 @@ public final class RepositorioPostgres implements RepositorioAerolinea {
                     insertar.setString(4, pasajero.getTipoDocumento().name());
                     insertar.setString(5, pasajero.getDocumento());
                     insertar.setString(6, registro.getEstado().name());
+                    insertar.setString(7, registro.getAsiento());
                     insertar.addBatch();
                 }
             }

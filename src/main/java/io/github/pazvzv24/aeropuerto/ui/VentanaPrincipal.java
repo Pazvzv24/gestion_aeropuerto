@@ -85,7 +85,17 @@ public final class VentanaPrincipal extends JFrame {
     private final JLabel lblResultado = new JLabel(" ");
     private final JLabel lblBarraEstado = new JLabel("Seleccione un avión de la tabla para operar.");
 
+    private final JLabel lblOrigenDatos = new JLabel();
+
     public VentanaPrincipal(Aerolinea aerolinea) {
+        this(aerolinea, "");
+    }
+
+    /**
+     * @param origenDatos dónde se guardan los datos (por ejemplo, "Datos guardados en PostgreSQL"),
+     *                    se muestra en la barra inferior
+     */
+    public VentanaPrincipal(Aerolinea aerolinea, String origenDatos) {
         super(aerolinea.getNombre() + " · Gestión de flota y vuelos");
         this.aerolinea = aerolinea;
         this.modelo = new AvionesTableModel(aerolinea);
@@ -102,7 +112,7 @@ public final class VentanaPrincipal extends JFrame {
         contenido.setBorder(BorderFactory.createEmptyBorder(20, 24, 12, 24));
         contenido.add(crearEncabezado(), BorderLayout.NORTH);
         contenido.add(crearPestanas(), BorderLayout.CENTER);
-        contenido.add(crearBarraEstado(), BorderLayout.SOUTH);
+        contenido.add(crearBarraEstado(origenDatos), BorderLayout.SOUTH);
         setContentPane(contenido);
 
         aplicarColores();
@@ -309,11 +319,14 @@ public final class VentanaPrincipal extends JFrame {
         return etiqueta;
     }
 
-    private JPanel crearBarraEstado() {
-        JPanel barra = new JPanel(new BorderLayout());
+    private JPanel crearBarraEstado(String origenDatos) {
+        JPanel barra = new JPanel(new BorderLayout(16, 0));
         barra.setOpaque(false);
         lblBarraEstado.putClientProperty("esTextoSecundario", Boolean.TRUE);
-        barra.add(lblBarraEstado, BorderLayout.WEST);
+        barra.add(lblBarraEstado, BorderLayout.CENTER);
+        lblOrigenDatos.setText(origenDatos);
+        lblOrigenDatos.putClientProperty("esTextoSecundario", Boolean.TRUE);
+        barra.add(lblOrigenDatos, BorderLayout.EAST);
         return barra;
     }
 

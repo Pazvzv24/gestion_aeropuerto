@@ -7,7 +7,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-blue)
 
-Sistema de gestión de flota y vuelos para **Altamar Airlines**, una aerolínea ficticia, escrito en **Java 17**. Administra los aviones con matrícula chilena y su estado operativo con reglas de una **máquina de estados**; programa **vuelos** y gestiona sus **pasajeros**: check-in con **RUT validado (módulo 11)** o pasaporte, embarque y lista de pasajeros con el **documento enmascarado**. Tiene **interfaz gráfica moderna** (Swing + FlatLaf, temas claro y oscuro), modo consola y guarda los datos en **PostgreSQL con Docker**, con seguridad desde el diseño.
+Sistema de gestión de flota y vuelos para **Altamar Airlines**, una aerolínea ficticia, escrito en **Java 17**. Administra los aviones con matrícula chilena y su estado operativo con reglas de una **máquina de estados**; programa **vuelos** y gestiona sus **pasajeros**: check-in con **RUT validado (módulo 11)** o pasaporte, **mapa de asientos**, **pase de abordar**, embarque y lista de pasajeros con el **documento enmascarado**. Tiene **interfaz gráfica moderna** (Swing + FlatLaf, temas claro y oscuro), modo consola y guarda los datos en **PostgreSQL con Docker**, con seguridad desde el diseño.
 
 Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacional**, continuado como proyecto de portafolio. Ver [Contexto](#contexto).
 
@@ -46,6 +46,8 @@ Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacion
 - **Incorporar aviones** a la flota, validando matrícula y capacidad.
 - **Vuelos:** tabla ordenada por hora de salida con filtro por estado; al seleccionar un vuelo se ve su lista de pasajeros y **solo las acciones que su estado permite** (iniciar embarque, marcar retraso, despegar, aterrizar, cancelar).
 - **Pasajeros:** check-in con RUT o pasaporte, embarque y anulación de check-in. El documento se muestra siempre enmascarado (`12.345.***-5`).
+- **Asientos:** mapa de asientos de cada avión según su modelo (6 por fila en los Airbus, 7 en el 767 y 9 en el 787), con los ocupados en gris. El asiento se elige en el check-in (o se asigna el primero libre) y se puede cambiar hasta antes de embarcar.
+- **Pase de abordar:** con ruta, fecha, hora de embarque (40 minutos antes de la salida), asiento, grupo de embarque y número de secuencia. El documento aparece enmascarado, porque el pase queda a la vista de otras personas.
 - **Programar vuelos** eligiendo ruta, fecha y hora, y un avión que no tenga otro vuelo pendiente.
 - **Tema claro y oscuro** con un clic.
 
@@ -65,7 +67,7 @@ Proyecto académico de **AIEP**, ramo **Fundamentos de Programación Computacion
 Seleccione una opción:
 ```
 
-La opción 8 abre un submenú para listar vuelos, ver sus pasajeros, programar vuelos, hacer check-in, embarcar, anular check-in y cambiar el estado de un vuelo.
+La opción 8 abre un submenú para listar vuelos, ver sus pasajeros, programar vuelos, hacer check-in (eligiendo asiento), embarcar, anular check-in, cambiar el estado de un vuelo, ver el pase de abordar y cambiar de asiento.
 
 **Datos guardados:** con PostgreSQL configurado, cada operación exitosa se guarda al instante y los datos siguen ahí al volver a abrir la aplicación. Sin configuración, la aplicación funciona igual en memoria. La barra inferior de la ventana indica cuál de los dos modos está en uso.
 
@@ -84,10 +86,10 @@ cd gestion_aeropuerto
 mvn verify
 
 # 3. Ejecutar la interfaz gráfica
-java -jar target/gestion-aeropuerto-2.4.0.jar
+java -jar target/gestion-aeropuerto-2.5.0.jar
 
 # O el menú por consola
-java -jar target/gestion-aeropuerto-2.4.0.jar --consola
+java -jar target/gestion-aeropuerto-2.5.0.jar --consola
 ```
 
 > Si la consola de Windows muestra mal las tildes, ejecuta antes `chcp 65001`.
@@ -108,10 +110,12 @@ cp .env.example .env          # en PowerShell: Copy-Item .env.example .env
 docker compose up -d
 
 # 3. Ejecutar la aplicación: lee el archivo .env y se conecta sola
-java -jar target/gestion-aeropuerto-2.4.0.jar
+java -jar target/gestion-aeropuerto-2.5.0.jar
 ```
 
-Al iniciar con la base vacía, la aplicación guarda los datos de demostración. Para volver a empezar desde cero: `docker compose down -v` (borra los datos) y luego `docker compose up -d`.
+Al iniciar con la base vacía, la aplicación guarda los datos de demostración.
+
+> **Al actualizar a una versión con cambios en las tablas** (por ejemplo, de la v2.4 a la v2.5), hay que recrear la base para que Docker vuelva a ejecutar los scripts de `db/init`: `docker compose down -v` y luego `docker compose up -d`. Esto borra los datos de prueba; la aplicación vuelve a cargar los de demostración. Para volver a empezar desde cero: `docker compose down -v` (borra los datos) y luego `docker compose up -d`.
 
 ### Seguridad de la base de datos
 
@@ -154,6 +158,7 @@ erDiagram
         varchar tipo_documento
         varchar documento
         varchar estado
+        varchar asiento
     }
 ```
 
@@ -163,7 +168,7 @@ erDiagram
 
 ## Pruebas
 
-**81 pruebas** con JUnit 5, siguiendo el patrón *Arrange, Act, Assert*:
+**91 pruebas** con JUnit 5, siguiendo el patrón *Arrange, Act, Assert*:
 
 | Clase de prueba | Qué comprueba |
 | :--- | :--- |
@@ -175,6 +180,8 @@ erDiagram
 | `EstadoVueloTest` | Transiciones permitidas del vuelo, estados finales y cierre del check-in al despegar |
 | `VueloTest` | Check-in sin duplicados ni sobrecupo, embarque que ocupa asientos, pasajeros que no se presentaron, aterrizaje y cancelación que liberan el avión |
 | `AerolineaVuelosTest` | Vuelos de demostración, programación con validaciones, un vuelo pendiente por avión, RUT inválido en el check-in y aviones bloqueados en la flota mientras su vuelo embarca o vuela |
+| `ModeloAvionTest` | Cantidad de asientos por modelo, letras por fila, última fila parcial y asientos que no existen |
+| `VueloAsientosTest` | Asiento automático, asiento ocupado o inexistente, cambio de asiento antes y después de embarcar, pase de abordar con documento enmascarado y asientos repetidos al cargar datos |
 | `AerolineaPersistenciaTest` | Reconstruir la aerolínea desde datos guardados, rechazo de datos imposibles y que solo las operaciones exitosas se guarden |
 | `ConfiguracionBDTest` | Lectura del archivo `.env`, prioridad de las variables de entorno, rechazo de contraseñas débiles y que la contraseña nunca se muestre |
 | `RepositorioPostgresTest` | Con una base PostgreSQL real: guardar y cargar, un intento de inyección SQL que se guarda como texto y que el usuario de la aplicación no pueda borrar aviones ni tablas |
@@ -214,7 +221,8 @@ gestion_aeropuerto/
 │   │   ├── Pasajero.java            # Nombre y documento validado
 │   │   ├── TipoDocumento.java       # RUT o pasaporte
 │   │   ├── Rut.java                 # Validación (módulo 11), formato y enmascarado del RUT
-│   │   ├── CheckIn.java             # Un pasajero dentro de un vuelo
+│   │   ├── CheckIn.java             # Un pasajero dentro de un vuelo, con su asiento
+│   │   ├── PaseAbordar.java         # Pase de abordar (documento enmascarado)
 │   │   ├── EstadoPasajero.java      # Check-in, embarcado o no se presentó
 │   │   ├── OperationResult.java     # Resultados posibles de una operación
 │   │   ├── Main.java                # Punto de entrada (ventana o consola)
@@ -226,6 +234,8 @@ gestion_aeropuerto/
 │   │   └── ui/
 │   │       ├── VentanaPrincipal.java    # Ventana con pestañas Flota y Vuelos
 │   │       ├── PanelVuelos.java         # Pestaña de vuelos y pasajeros
+│   │       ├── MapaAsientos.java        # Mapa para elegir asiento
+│   │       ├── DialogoPaseAbordar.java  # Pase de abordar con aspecto de tarjeta
 │   │       ├── AvionesTableModel.java   # Datos de la tabla de la flota
 │   │       ├── VuelosTableModel.java    # Datos de la tabla de vuelos
 │   │       ├── PasajerosTableModel.java # Datos de la lista de pasajeros
@@ -237,6 +247,8 @@ gestion_aeropuerto/
 │       ├── AerolineaVuelosTest.java
 │       ├── VueloTest.java
 │       ├── EstadoVueloTest.java
+│       ├── ModeloAvionTest.java
+│       ├── VueloAsientosTest.java
 │       ├── PasajeroTest.java
 │       ├── RutTest.java
 │       ├── AerolineaPersistenciaTest.java
@@ -402,9 +414,12 @@ if (resultado.isSuccess()) {
 | `DUPLICATE_PASSENGER` | 409 | El pasajero ya tiene check-in en este vuelo |
 | `ALREADY_BOARDED` | 409 | El pasajero ya embarcó |
 | `CHECK_IN_CLOSED` | 409 | El check-in de este vuelo está cerrado |
+| `SEAT_TAKEN` | 409 | El asiento ya está ocupado |
+| `BOARDING_PASS_UNAVAILABLE` | 409 | No se puede emitir el pase de abordar en el estado actual |
 | `FLEET_FULL` | 409 | La flota alcanzó su capacidad máxima |
 | `INVALID_AMOUNT` | 422 | Cantidad de pasajeros inválida |
 | `INVALID_REGISTRATION` | 422 | Matrícula inválida, use el formato CC-XXX |
+| `INVALID_SEAT` | 422 | Asiento inválido para este avión |
 | `INVALID_FLIGHT_DATA` | 422 | Datos del vuelo inválidos |
 | `INVALID_PASSENGER_DATA` | 422 | Datos del pasajero inválidos |
 
@@ -445,6 +460,9 @@ Los pasajeros tienen datos personales, así que se aplican principios de la **Le
 - Un vuelo tiene código `AM` y 3 o 4 dígitos, sin repetir, y su origen y destino son distintos.
 - Cada avión opera **un vuelo pendiente a la vez**; un avión fuera de servicio no recibe vuelos.
 - El **check-in** está abierto hasta el despegue (también si el vuelo está retrasado), sin documentos repetidos ni más pasajeros que asientos.
+- Cada pasajero tiene un asiento que existe en el modelo del avión, y dos pasajeros no pueden tener el mismo asiento en un vuelo (regla también en la base de datos con `UNIQUE`).
+- El asiento se puede cambiar mientras el check-in está abierto y el pasajero no ha embarcado.
+- No hay pase de abordar para vuelos aterrizados o cancelados, ni para pasajeros que no se presentaron.
 - Solo embarcan pasajeros con check-in y solo mientras el vuelo está **embarcando**. Al despegar, quien no embarcó queda como **no se presentó**.
 - Mientras un vuelo **embarca o vuela**, su avión no se puede operar desde la pestaña Flota; si tiene un vuelo programado, el embarque se inicia desde el vuelo.
 - Un vuelo en el aire no se puede cancelar; si se cancela durante el embarque, los pasajeros bajan y el avión queda disponible.
@@ -457,7 +475,7 @@ Los pasajeros tienen datos personales, así que se aplican principios de la **Le
 
 Este proyecto nació como una evaluación del ramo **Fundamentos de Programación Computacional** (AIEP, primer semestre), en la unidad de introducción a Java. La **v1.0** corresponde a la versión entregada.
 
-Desde la **v1.1** continúa como proyecto de portafolio: corrección de errores, validación de la entrada del usuario y encapsulamiento (v1.1); estructura estándar con Maven, pruebas automáticas e integración continua (v2.0); interfaz gráfica (v2.1); una aerolínea con flota, matrículas, modelos y estados con reglas (v2.2), vuelos con check-in y embarque de pasajeros (v2.3), y datos guardados en PostgreSQL con Docker (v2.4).
+Desde la **v1.1** continúa como proyecto de portafolio: corrección de errores, validación de la entrada del usuario y encapsulamiento (v1.1); estructura estándar con Maven, pruebas automáticas e integración continua (v2.0); interfaz gráfica (v2.1); una aerolínea con flota, matrículas, modelos y estados con reglas (v2.2), vuelos con check-in y embarque de pasajeros (v2.3), datos guardados en PostgreSQL con Docker (v2.4), y asientos con pase de abordar (v2.5).
 
 No se incluyen el enunciado ni la pauta de evaluación.
 
@@ -474,6 +492,7 @@ No se incluyen el enunciado ni la pauta de evaluación.
 | v2.2 | Altamar Airlines: `Aeropuerto` pasa a ser `Aerolinea`, con flota de 15 aviones y capacidad para 100; matrícula chilena `CC-XXX`; modelos reales con su capacidad (`ModeloAvion`); estados operativos con máquina de estados (`EstadoAvion`); incorporar y dar de baja aviones; búsqueda por matrícula y filtro por estado en la interfaz; 6 resultados nuevos; 32 pruebas. |
 | v2.3 | Vuelos y pasajeros: clases `Vuelo`, `EstadoVuelo`, `Destino`, `CheckIn` y `EstadoPasajero`; `Pasajero` con RUT validado (módulo 11) o pasaporte y documento enmascarado (`Rut`, `TipoDocumento`); el vuelo controla el estado y los pasajeros de su avión; pestaña **Vuelos y pasajeros** en la interfaz y submenú en la consola; 5 vuelos de demostración con pasajeros ficticios; 10 resultados nuevos; 67 pruebas. |
 | v2.4 | Datos guardados en PostgreSQL 17 con Docker Compose: esquema con restricciones, usuario de la aplicación con mínimo privilegio, contraseñas en `.env`, `PreparedStatement`, transacciones y validación de los datos al cargar; capa `persistencia` (`RepositorioAerolinea`, `RepositorioPostgres`, `ConfiguracionBD`); modo memoria si no hay base de datos; integración continua con una base PostgreSQL real; 81 pruebas. |
+| v2.5 | Asientos y pase de abordar: distribución de asientos por modelo, mapa de asientos para elegir, asiento automático, cambio de asiento, pase de abordar con documento enmascarado (en la ventana y en la consola); columna `asiento` con `UNIQUE` por vuelo; 3 resultados nuevos; 91 pruebas. |
 
 ---
 

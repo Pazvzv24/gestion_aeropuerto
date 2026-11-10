@@ -1,5 +1,9 @@
 package io.github.pazvzv24.aeropuerto;
 
+import io.github.pazvzv24.aeropuerto.persistencia.ConfiguracionBD;
+import io.github.pazvzv24.aeropuerto.persistencia.RepositorioAerolinea;
+import io.github.pazvzv24.aeropuerto.persistencia.RepositorioException;
+import io.github.pazvzv24.aeropuerto.persistencia.RepositorioPostgres;
 import io.github.pazvzv24.aeropuerto.ui.Tema;
 import io.github.pazvzv24.aeropuerto.ui.VentanaPrincipal;
 import java.awt.GraphicsEnvironment;
@@ -14,6 +18,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Scanner;
+import java.util.function.Consumer;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
 /**
@@ -24,6 +30,7 @@ import javax.swing.SwingUtilities;
  */
 public class Main {
 
+    private static final String NOMBRE_AEROLINEA = "Altamar Airlines";
     private static final int OPCION_VUELOS = 8;
     private static final int OPCION_SALIR = 9;
     private static final int VOLVER_DE_VUELOS = 8;
@@ -33,9 +40,12 @@ public class Main {
             DateTimeFormatter.ofPattern("dd-MM-uuuu HH:mm").withResolverStyle(ResolverStyle.STRICT);
 
     public static void main(String[] args) {
-        Aerolinea aerolinea = Aerolinea.altamarAirlines();
+        Inicio inicio = iniciar();
+        Aerolinea aerolinea = inicio.aerolinea();
 
         if (usarConsola(args)) {
+            System.out.println(inicio.mensaje());
+            guardarDespuesDeCadaCambio(inicio, mensaje -> System.out.println("[ERROR] " + mensaje));
             try (Scanner scanner = new Scanner(System.in)) {
                 ejecutarMenu(aerolinea, scanner, System.out);
             }
@@ -44,8 +54,77 @@ public class Main {
 
         SwingUtilities.invokeLater(() -> {
             Tema.iniciar();
-            new VentanaPrincipal(aerolinea).setVisible(true);
+            VentanaPrincipal ventana = new VentanaPrincipal(aerolinea, inicio.mensaje());
+            guardarDespuesDeCadaCambio(inicio, mensaje -> JOptionPane.showMessageDialog(ventana, mensaje,
+                    "Error al guardar", JOptionPane.ERROR_MESSAGE));
+            ventana.setVisible(true);
         });
+    }
+
+    /**
+     * Cómo partió la aplicación: la aerolínea, dónde se guardan sus datos (null = solo en memoria)
+     * y un mensaje para el usuario.
+     */
+    record Inicio(Aerolinea aerolinea, RepositorioAerolinea repositorio, String mensaje) {
+    }
+
+    /**
+     * Si hay un archivo .env (o variables de entorno) con los datos de PostgreSQL, carga la aerolínea
+     * desde la base de datos; la primera vez guarda los datos de demostración.
+     * Si no hay configuración o la base no responde, funciona en memoria y lo avisa.
+     */
+    static Inicio iniciar() {
+        Optional<ConfiguracionBD> configuracion;
+        try {
+            configuracion = ConfiguracionBD.desdeEntorno();
+        } catch (IllegalArgumentException e) {
+            return enMemoria("Configuración de la base de datos inválida: " + e.getMessage()
+                    + " Se usa el modo memoria.");
+        }
+        if (configuracion.isEmpty()) {
+            return enMemoria("Modo memoria: los datos no se guardan al cerrar.");
+        }
+        RepositorioAerolinea repositorio = new RepositorioPostgres(configuracion.get(), NOMBRE_AEROLINEA);
+        try {
+            Optional<Aerolinea> guardada = repositorio.cargar();
+            if (guardada.isPresent()) {
+                return new Inicio(guardada.get(), repositorio, "Datos guardados en PostgreSQL.");
+            }
+            Aerolinea demostracion = Aerolinea.altamarAirlines();
+            repositorio.guardar(demostracion);
+            return new Inicio(demostracion, repositorio, "PostgreSQL: se guardaron los datos de demostración.");
+        } catch (RepositorioException e) {
+            avisarDetalle(e);
+            return enMemoria(e.getMessage() + " Se usa el modo memoria: los cambios no se guardarán.");
+        }
+    }
+
+    private static Inicio enMemoria(String mensaje) {
+        return new Inicio(Aerolinea.altamarAirlines(), null, mensaje);
+    }
+
+    /** Después de cada operación exitosa guarda en la base de datos; si falla, avisa al usuario. */
+    private static void guardarDespuesDeCadaCambio(Inicio inicio, Consumer<String> avisoError) {
+        RepositorioAerolinea repositorio = inicio.repositorio();
+        if (repositorio == null) {
+            return;
+        }
+        Aerolinea aerolinea = inicio.aerolinea();
+        aerolinea.setAlCambiar(() -> {
+            try {
+                repositorio.guardar(aerolinea);
+            } catch (RepositorioException e) {
+                avisarDetalle(e);
+                avisoError.accept(e.getMessage());
+            }
+        });
+    }
+
+    /** El detalle técnico va a la consola de errores (nunca incluye contraseñas). */
+    private static void avisarDetalle(RepositorioException e) {
+        if (e.getCause() != null) {
+            System.err.println("Detalle: " + e.getCause().getMessage());
+        }
     }
 
     /** Consola si se pide con --consola o si el equipo no tiene pantalla (por ejemplo, un servidor). */
